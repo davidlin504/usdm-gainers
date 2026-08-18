@@ -139,24 +139,30 @@ html, body {
 .row:hover .row__base { color: var(--accent); }
 .row:active { transform: scale(0.98); }
 
-.row__change3d {
+.row__change-days {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  margin-top: 3px;
+}
+.row__change-day {
   font-family: var(--mono);
   font-size: 10px;
-  margin-top: 3px;
   color: var(--text-faint);
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;
 }
-.row__change3d-label {
+.row__change-day-label {
   font-size: 9px;
   color: var(--text-faint);
   letter-spacing: 0.04em;
 }
-.row__change3d.is-up { color: var(--up); }
-.row__change3d.is-down { color: var(--down); }
-.row__change3d.is-na { color: var(--text-faint); }
+.row__change-day.is-up { color: var(--up); }
+.row__change-day.is-down { color: var(--down); }
+.row__change-day.is-na { color: var(--text-faint); }
 
 .row__rank {
   font-family: var(--mono);
@@ -188,12 +194,33 @@ html, body {
   color: var(--text-faint);
 }
 
+.row__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.row__bar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.row__bar-item-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  width: 16px;
+  flex-shrink: 0;
+}
+
 .row__bar-track {
   position: relative;
   height: 4px;
   background: var(--border);
   border-radius: 2px;
-  margin-top: 6px;
+  flex: 1;
   overflow: visible;
 }
 
@@ -257,7 +284,7 @@ html, body {
 
 .skeleton-list { display: flex; flex-direction: column; gap: 4px; padding: 4px 6px; }
 .skeleton-row {
-  height: 50px;
+  height: 64px;
   border-radius: 10px;
   background: linear-gradient(90deg, var(--panel) 25%, var(--panel-alt) 37%, var(--panel) 63%);
   background-size: 400% 100%;
