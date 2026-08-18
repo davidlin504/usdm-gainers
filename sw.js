@@ -32,14 +32,27 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // cache first
+  // event.respondWith(
+  //   caches.match(event.request).then((cached) => {
+  //     if (cached) return cached;
+  //     return fetch(event.request).then((res) => {
+  //       const resClone = res.clone();
+  //       caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+  //       return res;
+  //     });
+  //   })
+  // );
+
+  // network-first：有網路就永遠拿最新版本，同時把它存進快取；
+  // 只有離線抓不到網路時，才退回上次存的快取，避免完全空白。
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((res) => {
+    fetch(event.request)
+      .then((res) => {
         const resClone = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
         return res;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
