@@ -104,6 +104,17 @@ function buildBinanceUrl(symbol) {
   return `https://www.binance.com/zh-TC/futures/${symbol}?_from=markets`;
 }
 
+function openBinanceSymbol(symbol) {
+  const url = buildBinanceUrl(symbol);
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 function splitSymbol(symbol) {
   const quotes = ["USDT", "USDC", "BUSD"];
   for (const q of quotes) {
@@ -169,13 +180,16 @@ function renderRows(items) {
     row.className = "row";
     row.title = `在幣安開啟 ${base}/${quote} 交易頁`;
     row.addEventListener("click", () => {
-      const url = buildBinanceUrl(item.symbol);
-      if (chrome?.tabs?.create) {
-        chrome.tabs.create({ url });
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
+      openBinanceSymbol(item.symbol);
     });
+    // row.addEventListener("click", () => {
+    //   const url = buildBinanceUrl(item.symbol);
+    //   if (chrome?.tabs?.create) {
+    //     chrome.tabs.create({ url });
+    //   } else {
+    //     window.open(url, "_blank", "noopener,noreferrer");
+    //   }
+    // });
 
     const rankClass = idx < 3 ? ` row__rank--${idx + 1}` : "";
 
