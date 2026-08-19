@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "USDⓈ-M 合約漲幅榜",
+  "version": "3.0.0",
+  "description": "即時顯示幣安 USDⓈ-M 永續合約（USD 保證金期貨）24 小時漲幅前十名代幣",
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "host_permissions": [
+    "https://fapi.binance.com/*"
+  ],
+  "permissions": []
+}

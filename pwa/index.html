@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>USDⓈ-M 漲幅榜</title>
+
+<!-- PWA manifest -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#0b0e14" />
+
+<!-- iOS「加入主畫面」專用設定（Safari 不吃 manifest，要靠這幾個 meta/link） -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="漲幅榜" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="apple-touch-icon" href="icons/icon180.png" />
+<link rel="icon" href="icons/icon192.png" />
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app__header">
+      <div class="brand">
+        <span class="brand__dot" id="liveDot"></span>
+        <a class="rankings__url" href="https://www.binance.com/zh-TC/markets/trading_data/rankings" target="_blank">
+          <h1 class="brand__title">USD Features 漲幅榜</h1>
+        </a>
+      </div>
+    </header>
+
+    <div class="subbar">
+      <span class="subbar__label">TOP 10 GAINERS · 24H</span>
+      <span class="subbar__updated" id="updatedAt">—</span>
+    </div>
+
+    <div id="content" class="content">
+      <div class="skeleton-list" id="skeleton">
+        <!-- skeleton rows injected by JS -->
+      </div>
+    </div>
+
+    <div id="errorBox" class="error-box" hidden>
+      <p id="errorText">無法載入資料</p>
+      <button id="retryBtn" class="retry-btn">重試</button>
+    </div>
+
+    <footer class="app__footer">
+      <span>資料來源：Binance Futures Public API</span>
+      <button id="refreshBtn" class="icon-btn" title="立即重新整理" aria-label="重新整理">
+        <span id="countdown">30s</span>
+        <svg viewBox="0 0 24 24" width="15" height="15"><path fill="#17e6a1" d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6a5.99 5.99 0 0 1-9.7 4.7l-1.42 1.42A7.98 7.98 0 0 0 12 21c4.42 0 8-3.58 8-8s-3.58-8-8-8z"/></svg>
+      </button>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        // updateViaCache: 'none' -> sw.js 這個檔案本身也不要被 HTTP 快取，
+        // 每次都直接跟伺服器要最新版本，避免「明明部署了新版但瀏覽器還在用舊 sw.js」。
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
