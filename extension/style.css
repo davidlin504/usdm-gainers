@@ -50,7 +50,7 @@ html, body {
 
 .brand { display: flex; align-items: center; gap: 8px; }
 
-.brand a { text-decoration: none; }
+.rankings__url { text-decoration: none; }
 
 .brand__dot {
   width: 7px;

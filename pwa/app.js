@@ -9,8 +9,8 @@ const IS_EXTENSION = typeof chrome !== "undefined" && !!chrome.runtime && !!chro
 
 // PWA 版本要換成你自己的 workers.dev 網址（結尾不要加斜線）；
 // 擴充功能版本不會用到這個常數，因為 IS_EXTENSION 會是 true。
+// const PWA_PROXY_BASE = "https://flat-sky-fe8c.davidlin504.workers.dev";
 const PWA_PROXY_BASE = "https://fapi.binance.com";
-// const PWA_PROXY_BASE = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev";
 
 const API_BASE = IS_EXTENSION ? "https://fapi.binance.com" : PWA_PROXY_BASE;
 
