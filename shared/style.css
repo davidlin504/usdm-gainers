@@ -30,7 +30,7 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.row, .icon-btn, .retry-btn { touch-action: manipulation; }
+.row, .refresh-btn, .retry-btn { touch-action: manipulation; }
 
 .app {
   display: flex;
@@ -76,11 +76,11 @@ html, body {
   color: var(--text);
 }
 
-.icon-btn {
+.refresh-btn {
   background: var(--panel);
   border: 1px solid var(--border);
   color: var(--text-dim);
-  width: 28px;
+  /* width: 48px; */
   height: 28px;
   border-radius: 8px;
   display: flex;
@@ -89,8 +89,8 @@ html, body {
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease, transform 0.4s ease;
 }
-.icon-btn:hover { color: var(--accent); border-color: var(--accent); }
-.icon-btn.spinning svg { animation: spin 0.7s linear; }
+.refresh-btn:hover { color: var(--accent); border-color: var(--accent); }
+.refresh-btn.spinning svg { animation: spin 0.7s linear; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 .subbar {
@@ -318,8 +318,13 @@ html, body {
 .app__footer {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 14px);
-  font-size: 10px;
+  font-size: 16px;
   color: var(--text-faint);
   font-family: var(--mono);
+}
+
+.refresh-icon path {
+  fill: var(--accent);
 }
