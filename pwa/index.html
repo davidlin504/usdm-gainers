@@ -6,17 +6,17 @@
 <title>USDⓈ-M 漲幅榜</title>
 
 <!-- PWA manifest -->
-<link rel="manifest" href="manifest.webmanifest" />
+<link rel="manifest" href="./manifest.webmanifest" />
 <meta name="theme-color" content="#0b0e14" />
 
 <!-- iOS「加入主畫面」專用設定（Safari 不吃 manifest，要靠這幾個 meta/link） -->
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="漲幅榜" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<link rel="apple-touch-icon" href="icons/icon180.png" />
-<link rel="icon" href="icons/icon192.png" />
+<link rel="apple-touch-icon" href="./icons/icon180.png" />
+<link rel="icon" href="./icons/icon192.png" />
 
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <div class="app">
@@ -60,7 +60,7 @@
       window.addEventListener('load', () => {
         // updateViaCache: 'none' -> sw.js 這個檔案本身也不要被 HTTP 快取，
         // 每次都直接跟伺服器要最新版本，避免「明明部署了新版但瀏覽器還在用舊 sw.js」。
-        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => {});
       });
     }
   </script>
