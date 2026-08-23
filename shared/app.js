@@ -106,6 +106,84 @@ async function attachDayChanges(items) {
   return results;
 }
 
+// Binance API 本身不提供市值（market cap 需要流通量資料），所以市值 / 完全稀釋市值(FDV) /
+// 24h量對市值比 這三項改用 CoinGecko 的公開 API 取得。
+// CoinGecko 的公開端點瀏覽器可以直接 fetch，沒有 CORS 問題。
+// 如果你有申請 Demo API Key（免費：https://www.coingecko.com/en/developers/dashboard），
+// 填在下面可以拿到比較寬鬆的速率限制；留空一樣能用，只是限制比較嚴。
+const COINGECKO_BASE = "https://api.coingecko.com/api/v3";
+const COINGECKO_API_KEY = "CG-cTqoggqr4Pm4fhQ1njKCLUnq";
+
+// 一次把 TOP_N 個 symbol 的市值資料一起抓回來（不是一個一個打），
+// 用 /coins/markets 的 symbols 參數。
+// 同一個 ticker 可能對應到多個幣（例如撞名的迷因幣），因為預設是
+// order=market_cap_desc，所以每個 symbol 第一次出現時取到的就是市值最大的那個。
+async function fetchMarketCaps(symbols) {
+  if (symbols.length === 0) return {};
+  const query = symbols.map((s) => s.toLowerCase()).join(",");
+  const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&symbols=${query}&order=market_cap_desc&per_page=250&page=1`;
+  const headers = COINGECKO_API_KEY ? { "x-cg-demo-api-key": COINGECKO_API_KEY } : {};
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error(`CoinGecko API 回應錯誤 (${res.status})`);
+  const data = await res.json();
+
+  const map = {};
+  data.forEach((coin) => {
+    const sym = coin.symbol?.toUpperCase();
+    if (sym && !(sym in map)) {
+      map[sym] = {
+        marketCap: coin.market_cap,
+        fdv: coin.current_price * coin.max_supply,
+        volume24h: coin.total_volume,
+      };
+    }
+  });
+  return map;
+}
+
+async function attachMarketCaps(items) {
+  try {
+    const symbols = items.map((item) => splitSymbol(item.symbol).base);
+    const map = await fetchMarketCaps(symbols);
+    return items.map((item) => ({
+      ...item,
+      marketCapInfo: map[splitSymbol(item.symbol).base] || null,
+    }));
+  } catch (err) {
+    console.warn("市值資料取得失敗", err);
+    return items.map((item) => ({ ...item, marketCapInfo: null }));
+  }
+}
+
+function formatCompactUSD(n) {
+  if (typeof n !== "number" || Number.isNaN(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `$${(n / 1e3).toFixed(2)}K`;
+  return `$${n.toFixed(2)}`;
+}
+
+function renderMarketCapInfo(info) {
+  if (!info || typeof info.marketCap !== "number") {
+    return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
+  }
+  const mcap = formatCompactUSD(info.marketCap);
+  const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
+  const ratio =
+    typeof info.volume24h === "number" && info.marketCap > 0
+      ? `${((info.volume24h / info.marketCap) * 100).toFixed(2)}%`
+      : "—";
+
+  return `
+    <div class="row__mcap">
+      <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
+      <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
+      <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
+    </div>`;
+}
+
 function buildBinanceUrl(symbol) {
   return `https://www.binance.com/zh-TC/futures/${symbol}?_from=markets`;
 }
@@ -170,6 +248,7 @@ function renderRows(items) {
     const pct = Number(item.priceChangePercent);
     const barsHtml = renderDayBars(item.dayChanges);
     const changeDaysHtml = renderDayChangeTexts(item.dayChanges);
+    const mcapHtml = renderMarketCapInfo(item.marketCapInfo);
 
     const row = document.createElement("a");
     row.className = "row";
@@ -188,6 +267,7 @@ function renderRows(items) {
           <span class="row__quote">/${quote}</span>
         </div>
         <div class="row__bars">${barsHtml}</div>
+        ${mcapHtml}
       </div>
       <div class="row__stats">
         <div class="row__price">${formatPrice(item.lastPrice)}</div>
@@ -250,6 +330,10 @@ async function loadData() {
     // 多日累積漲跌幅需要額外呼叫 klines API，先顯示基本資料，完成後再補上。
     const withDayChanges = await attachDayChanges(top);
     renderRows(withDayChanges);
+
+    // 市值 / FDV / Vol-Mcap 比率來自 CoinGecko，跟上面的多日漲幅一樣採「先顯示、後補上」。
+    const withMarketCaps = await attachMarketCaps(withDayChanges);
+    renderRows(withMarketCaps);
   } catch (err) {
     console.error(err);
     showError(err.message || "網路連線失敗，請確認裝置已連上網際網路");
