@@ -230,21 +230,23 @@ function formatCompactUSD(n) {
   return `$${n.toFixed(2)}`;
 }
 
-function renderMarketCapInfo(info, quoteVolume) {
+function renderMarketCapInfo(info) {
   if (!info || typeof info.marketCap !== "number") {
     return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
   }
   const mcap = formatCompactUSD(info.marketCap);
   const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
+  const volume24h = typeof info.volume24h === "number" ? formatCompactUSD(info.volume24h) : "—";
   const ratio =
-    typeof quoteVolume === "number" && info.marketCap > 0
-      ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
+    typeof info.volume24h === "number" && info.marketCap > 0
+      ? `${((info.volume24h / info.marketCap) * 100).toFixed(2)}%`
       : "—";
 
   return `
     <div class="row__mcap">
       <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
       <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
+      <div class="row__mcap-item"><span class="row__mcap-label">24h成交量</span>${volume24h}</div>
       <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
     </div>`;
     }
@@ -312,19 +314,6 @@ function renderDayChangeTexts(dayChanges) {
   }).join("");
 }
 
-function renderQuoteVolumeRatio(info, quoteVolume) {
-  if (!info || typeof info.marketCap !== "number") {
-    return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
-  }
-  const ratio =
-  typeof quoteVolume === "number" && info.marketCap > 0
-    ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
-    : "—";
-  return `
-    <span class="row__ratio">${ratio}</span>
-  `;
-}
-
 function renderRows(items) {
   $content.innerHTML = "";
 
@@ -334,7 +323,7 @@ function renderRows(items) {
     const barsHtml = renderDayBars(item.dayChanges);
     const changeDaysHtml = renderDayChangeTexts(item.dayChanges);
     const quoteVolume = formatCompactUSD(Number(item.quoteVolume));
-    const mcapHtml = renderMarketCapInfo(item.marketCapInfo, quoteVolume);
+    const mcapHtml = renderMarketCapInfo(item.marketCapInfo);
     const betaHtml = renderBeta(item.beta);
 
     const row = document.createElement("a");
@@ -345,7 +334,7 @@ function renderRows(items) {
     row.title = `在幣安開啟 ${base}/${quote} 交易頁`;
 
     const rankClass = idx < 3 ? ` row__rank--${idx + 1}` : "";
-    
+
     row.innerHTML = `
       <div class="row__rank${rankClass}">${idx + 1}</div>
       <div class="row__main">
