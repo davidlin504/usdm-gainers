@@ -56,17 +56,32 @@ const KLINES_URL = `${API_BASE}/fapi/v1/klines`;
 const DAY_RANGES = [3, 7];
 const MAX_DAY_RANGE = Math.max(...DAY_RANGES);
 
-// fapi.binance.com 對呼叫頻率比較嚴格，所以每個 symbol 只打一次 klines：
-// 抓「最大天數 + 1」根日K，之後每個天數要用的基準價都從這一份資料裡切出來，
-// 不會因為 DAY_RANGES 有幾個天數就打幾次 API。
-// klines 沒有能一次查多個 symbol 的版本，所以 TOP_N 個代幣仍然是各打一次
-// （這已經是能做到的最少呼叫次數）。
-async function fetchDayChanges(symbol, currentPrice) {
-  const url = `${KLINES_URL}?symbol=${symbol}&interval=1d&limit=${MAX_DAY_RANGE + 1}`;
+// beta 計算用的參數：
+// - BENCHMARK_SYMBOL：拿誰當「大盤」。幣圈通常用 BTC 當基準（等同傳統金融拿大盤指數算股票 beta）。
+// - BETA_LOOKBACK_DAYS：用多少天的日報酬率樣本去算 covariance/variance。
+//   注意：這個數字不能跟 DAY_RANGES 的天數搞混——DAY_RANGES 只是「累積漲跌幅」的顯示天數，
+//   beta 需要的是「報酬率的樣本點數」，樣本太少（例如只有 7 天 = 6 個報酬率）統計上幾乎沒意義。
+//   30 天（29 個報酬率）是幣圈常見的下限，仍然不多，但比 6 個好非常多。想要更穩定可以拉到 60/90。
+const BENCHMARK_SYMBOL = "BTCUSDT";
+const BETA_LOOKBACK_DAYS = 30;
+
+// 每個 symbol（包含 benchmark）只打一次 klines，抓「max(顯示天數, beta天數) + 1」根日K，
+// 這份資料同時拿去算 %D 累積漲跌幅（原本的邏輯）跟 beta（新邏輯），不會因為兩個功能各打一次 API。
+const KLINE_LIMIT = Math.max(MAX_DAY_RANGE, BETA_LOOKBACK_DAYS) + 1;
+
+async function fetchKlines(symbol, limit = KLINE_LIMIT) {
+  const url = `${KLINES_URL}?symbol=${symbol}&interval=1d&limit=${limit}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`klines ${res.status}`);
-  const klines = await res.json();
+  return res.json();
+}
 
+function closesFromKlines(klines) {
+  // klines[i][4] 是收盤價字串，轉成 number 陣列（舊到新排序）。
+  return Array.isArray(klines) ? klines.map((k) => Number(k[4])) : [];
+}
+
+function computeDayChanges(klines, currentPrice) {
   const changes = {};
   if (!Array.isArray(klines) || klines.length === 0) {
     DAY_RANGES.forEach((days) => { changes[days] = null; });
@@ -89,17 +104,64 @@ async function fetchDayChanges(symbol, currentPrice) {
   return changes;
 }
 
-async function attachDayChanges(items) {
+// 把收盤價陣列轉成「日報酬率」陣列（簡單報酬率，不是log return）。
+// [p0, p1, p2] -> [(p1-p0)/p0, (p2-p1)/p1]
+function computeReturns(closes) {
+  const returns = [];
+  for (let i = 1; i < closes.length; i++) {
+    const prev = closes[i - 1];
+    if (prev) returns.push((closes[i] - prev) / prev);
+  }
+  return returns;
+}
+
+// beta = Cov(資產報酬率, 基準報酬率) / Var(基準報酬率)
+// 兩邊長度可能不同（例如某個 symbol 上市時間比 BTC 短），取尾端對齊的共同長度，
+// 也就是「最近 n 天」兩邊都有資料的部分。
+function computeBeta(assetReturns, benchmarkReturns) {
+  const n = Math.min(assetReturns.length, benchmarkReturns.length);
+  if (n < 2) return null;
+
+  const a = assetReturns.slice(-n);
+  const b = benchmarkReturns.slice(-n);
+  const meanA = a.reduce((sum, v) => sum + v, 0) / n;
+  const meanB = b.reduce((sum, v) => sum + v, 0) / n;
+
+  let cov = 0;
+  let varB = 0;
+  for (let i = 0; i < n; i++) {
+    cov += (a[i] - meanA) * (b[i] - meanB);
+    varB += (b[i] - meanB) ** 2;
+  }
+  if (varB === 0) return null;
+  return cov / varB;
+}
+
+async function attachDayChangesAndBeta(items) {
+  // benchmark（BTC）的報酬率序列只抓一次，所有 token 共用同一份去算 covariance。
+  let benchmarkReturns = [];
+  try {
+    const benchKlines = await fetchKlines(BENCHMARK_SYMBOL);
+    benchmarkReturns = computeReturns(closesFromKlines(benchKlines));
+  } catch (err) {
+    console.warn("Benchmark (BTC) 資料取得失敗，beta 將顯示為 N/A", err);
+  }
+
   const results = await Promise.all(
     items.map(async (item) => {
       try {
-        const dayChanges = await fetchDayChanges(item.symbol, item.lastPrice);
-        return { ...item, dayChanges };
+        const klines = await fetchKlines(item.symbol);
+        const dayChanges = computeDayChanges(klines, item.lastPrice);
+        const assetReturns = computeReturns(closesFromKlines(klines));
+        const beta = benchmarkReturns.length
+          ? computeBeta(assetReturns, benchmarkReturns)
+          : null;
+        return { ...item, dayChanges, beta };
       } catch (err) {
-        console.warn(`多日漲幅取得失敗: ${item.symbol}`, err);
+        console.warn(`K線/beta 取得失敗: ${item.symbol}`, err);
         const dayChanges = {};
         DAY_RANGES.forEach((days) => { dayChanges[days] = null; });
-        return { ...item, dayChanges };
+        return { ...item, dayChanges, beta: null };
       }
     })
   );
@@ -150,10 +212,11 @@ async function attachMarketCaps(items) {
     return items.map((item) => ({
       ...item,
       marketCapInfo: map[splitSymbol(item.symbol).base] || null,
+      quoteVolume: Number(item.quoteVolume),
     }));
   } catch (err) {
     console.warn("市值資料取得失敗", err);
-    return items.map((item) => ({ ...item, marketCapInfo: null }));
+    return items.map((item) => ({ ...item, marketCapInfo: null, quoteVolume: Number(item.quoteVolume) }) );
   }
 }
 
@@ -167,15 +230,15 @@ function formatCompactUSD(n) {
   return `$${n.toFixed(2)}`;
 }
 
-function renderMarketCapInfo(info) {
+function renderMarketCapInfo(info, quoteVolume) {
   if (!info || typeof info.marketCap !== "number") {
     return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
   }
   const mcap = formatCompactUSD(info.marketCap);
   const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
   const ratio =
-    typeof info.volume24h === "number" && info.marketCap > 0
-      ? `${((info.volume24h / info.marketCap) * 100).toFixed(2)}%`
+    typeof quoteVolume === "number" && info.marketCap > 0
+      ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
       : "—";
 
   return `
@@ -184,7 +247,7 @@ function renderMarketCapInfo(info) {
       <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
       <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
     </div>`;
-}
+    }
 
 function buildBinanceUrl(symbol) {
   return `https://www.binance.com/zh-TC/futures/${symbol}?_from=markets`;
@@ -229,6 +292,13 @@ function renderDayBars(dayChanges) {
   }).join("");
 }
 
+function renderBeta(beta) {
+  const has = typeof beta === "number" && !Number.isNaN(beta);
+  if (!has) return `<span class="row__beta is-na">β —</span>`;
+  const cls = beta >= 1 ? "is-hi" : "is-lo"; // >=1：波動比 BTC 大；<1：比 BTC 小
+  return `<span class="row__beta ${cls}">β ${beta.toFixed(2)}</span>`;
+}
+
 function renderDayChangeTexts(dayChanges) {
   return DAY_RANGES.map((days) => {
     const value = dayChanges?.[days];
@@ -250,7 +320,9 @@ function renderRows(items) {
     const pct = Number(item.priceChangePercent);
     const barsHtml = renderDayBars(item.dayChanges);
     const changeDaysHtml = renderDayChangeTexts(item.dayChanges);
-    const mcapHtml = renderMarketCapInfo(item.marketCapInfo);
+    const quoteVolume = formatCompactUSD(Number(item.quoteVolume));
+    const mcapHtml = renderMarketCapInfo(item.marketCapInfo, quoteVolume);
+    const betaHtml = renderBeta(item.beta);
 
     const row = document.createElement("a");
     row.className = "row";
@@ -260,13 +332,15 @@ function renderRows(items) {
     row.title = `在幣安開啟 ${base}/${quote} 交易頁`;
 
     const rankClass = idx < 3 ? ` row__rank--${idx + 1}` : "";
-
+    
     row.innerHTML = `
       <div class="row__rank${rankClass}">${idx + 1}</div>
       <div class="row__main">
         <div class="row__symbol">
           <span class="row__base">${base}</span>
           <span class="row__quote">/${quote}</span>
+          <span class="row__quoteVolume">${quoteVolume}</span>
+          ${betaHtml}
         </div>
         <div class="row__bars">${barsHtml}</div>
         ${mcapHtml}
@@ -330,7 +404,7 @@ async function loadData() {
     $liveDot.style.background = "var(--up)";
 
     // 多日累積漲跌幅需要額外呼叫 klines API，先顯示基本資料，完成後再補上。
-    const withDayChanges = await attachDayChanges(top);
+    const withDayChanges = await attachDayChangesAndBeta(top);
     renderRows(withDayChanges);
 
     // 市值 / FDV / Vol-Mcap 比率來自 CoinGecko，跟上面的多日漲幅一樣採「先顯示、後補上」。

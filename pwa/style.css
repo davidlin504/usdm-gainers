@@ -196,6 +196,26 @@ html, body {
   color: var(--text-faint);
 }
 
+.row__quoteVolume {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--text);
+}
+
+.row__beta {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--text-dim);
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+}
+
+.row__beta.is-hi { color: var(--down); border-color: rgba(255, 84, 112, 0.35); }
+.row__beta.is-lo { color: var(--up); border-color: rgba(23, 230, 161, 0.35); }
+.row__beta.is-na { color: var(--text-faint); }
+
 .row__bars {
   display: flex;
   flex-direction: column;
