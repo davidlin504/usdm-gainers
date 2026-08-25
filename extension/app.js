@@ -210,10 +210,11 @@ async function attachMarketCaps(items) {
     return items.map((item) => ({
       ...item,
       marketCapInfo: map[splitSymbol(item.symbol).base] || null,
+      quoteVolume: Number(item.quoteVolume),
     }));
   } catch (err) {
     console.warn("市值資料取得失敗", err);
-    return items.map((item) => ({ ...item, marketCapInfo: null }));
+    return items.map((item) => ({ ...item, marketCapInfo: null, quoteVolume: Number(item.quoteVolume) }) );
   }
 }
 
@@ -227,15 +228,15 @@ function formatCompactUSD(n) {
   return `$${n.toFixed(2)}`;
 }
 
-function renderMarketCapInfo(info) {
+function renderMarketCapInfo(info, quoteVolume) {
   if (!info || typeof info.marketCap !== "number") {
     return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
   }
   const mcap = formatCompactUSD(info.marketCap);
   const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
   const ratio =
-    typeof info.volume24h === "number" && info.marketCap > 0
-      ? `${((info.volume24h / info.marketCap) * 100).toFixed(2)}%`
+    typeof quoteVolume === "number" && info.marketCap > 0
+      ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
       : "—";
 
   return `
@@ -244,7 +245,7 @@ function renderMarketCapInfo(info) {
       <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
       <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
     </div>`;
-}
+    }
 
 function buildBinanceUrl(symbol) {
   return `https://www.binance.com/zh-TC/futures/${symbol}?_from=markets`;
@@ -309,6 +310,19 @@ function renderDayChangeTexts(dayChanges) {
   }).join("");
 }
 
+function renderQuoteVolumeRatio(info, quoteVolume) {
+  if (!info || typeof info.marketCap !== "number") {
+    return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
+  }
+  const ratio =
+  typeof quoteVolume === "number" && info.marketCap > 0
+    ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
+    : "—";
+  return `
+    <span class="row__ratio">${ratio}</span>
+  `;
+}
+
 function renderRows(items) {
   $content.innerHTML = "";
 
@@ -317,7 +331,8 @@ function renderRows(items) {
     const pct = Number(item.priceChangePercent);
     const barsHtml = renderDayBars(item.dayChanges);
     const changeDaysHtml = renderDayChangeTexts(item.dayChanges);
-    const mcapHtml = renderMarketCapInfo(item.marketCapInfo);
+    const quoteVolume = formatCompactUSD(Number(item.quoteVolume));
+    const mcapHtml = renderMarketCapInfo(item.marketCapInfo, quoteVolume);
     const betaHtml = renderBeta(item.beta);
 
     const row = document.createElement("a");
@@ -328,7 +343,6 @@ function renderRows(items) {
     row.title = `在幣安開啟 ${base}/${quote} 交易頁`;
 
     const rankClass = idx < 3 ? ` row__rank--${idx + 1}` : "";
-    const quoteVolume = formatCompactUSD(Number(item.quoteVolume));
     
     row.innerHTML = `
       <div class="row__rank${rankClass}">${idx + 1}</div>
