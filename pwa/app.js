@@ -26,6 +26,10 @@ const TOP_N = 5;
 const TICKER_SPEED_PX_PER_SEC = 40;
 const TICKER_MIN_DURATION_S = 4;
 
+// 市值區塊是否展開，現在是「全部一起開／全部一起關」的單一全域狀態
+//（不再逐個 symbol 記憶，改由 index.html 裡的一個 toggle 統一控制，見 initMcapToggle()）。
+let mcapExpanded = false;
+
 // 記住最近一次 renderRows() 用的資料，這樣切換到跑馬燈模式時可以直接拿現有資料渲染，
 // 不需要重新打 API。
 let lastRenderedItems = [];
@@ -245,23 +249,32 @@ function formatCompactUSD(n) {
 }
 
 function renderMarketCapInfo(info, quoteVolume) {
-  if (!info || typeof info.marketCap !== "number") {
-    return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
-  }
-  const mcap = formatCompactUSD(info.marketCap);
-  const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
-  const ratio =
-    typeof quoteVolume === "number" && info.marketCap > 0
-      ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
-      : "—";
+  const innerHtml =
+    !info || typeof info.marketCap !== "number"
+      ? `<div class="row__mcap row__mcap--na">市值資料暫無</div>`
+      : (() => {
+          const mcap = formatCompactUSD(info.marketCap);
+          const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
+          const ratio =
+            typeof quoteVolume === "number" && info.marketCap > 0
+              ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
+              : "—";
+          return `
+            <div class="row__mcap">
+              <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
+              <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
+              <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
+            </div>`;
+        })();
 
+  // 收闔用 grid-template-rows 0fr↔1fr 的技巧（搭配 overflow:hidden），
+  // 不用 JS 去量 px 高度、也不用 max-height 隨便猜一個夠大的值：
+  // 內容高度不管長怎樣，展開/收闔都是平滑過渡，不會有畫面瞬間跳一下的抖動感。
   return `
-    <div class="row__mcap">
-      <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
-      <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
-      <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
+    <div class="row__mcap-collapse${mcapExpanded ? " is-open" : ""}">
+      <div class="row__mcap-collapse-inner">${innerHtml}</div>
     </div>`;
-    }
+}
 
 function buildBinanceUrl(symbol) {
   return `https://www.binance.com/zh-TC/futures/${symbol}?_from=markets`;
@@ -428,8 +441,8 @@ function renderRows(items) {
     const pct = Number(item.priceChangePercent);
     const barsHtml = renderDayBars(item.dayChanges);
     const changeDaysHtml = renderDayChangeTexts(item.dayChanges);
-    const quoteVolume = formatCompactUSD(Number(item.quoteVolume));
-    const mcapHtml = renderMarketCapInfo(item.marketCapInfo, quoteVolume);
+    const quoteVolumeDisplay = formatCompactUSD(Number(item.quoteVolume));
+    const mcapHtml = renderMarketCapInfo(item.marketCapInfo, Number(item.quoteVolume));
     const betaHtml = renderBeta(item.beta);
 
     const row = document.createElement("a");
@@ -447,7 +460,7 @@ function renderRows(items) {
         <div class="row__symbol">
           <span class="row__base">${base}</span>
           <span class="row__quote">/${quote}</span>
-          <span class="row__quoteVolume">${quoteVolume}</span>
+          <span class="row__quoteVolume">${quoteVolumeDisplay}</span>
           ${betaHtml}
         </div>
         <div class="row__bars">${barsHtml}</div>
@@ -460,6 +473,26 @@ function renderRows(items) {
       </div>
     `;
     $content.appendChild(row);
+  });
+}
+
+// 市值區塊現在是全部一起開/關，由 index.html 裡的 #mcapToggle 統一控制。
+// 切換時直接改目前畫面上所有 .row__mcap-collapse 的 class，不用整個重新 renderRows()，
+// 這樣是瞬間對所有 row 同時生效，而且沿用原本的 grid-template-rows 平滑過渡動畫。
+function setMcapExpanded(expanded) {
+  mcapExpanded = expanded;
+  document.querySelectorAll(".row__mcap-collapse").forEach((el) => {
+    el.classList.toggle("is-open", expanded);
+  });
+}
+
+// 綁定 index.html 裡固定寫好的 #mcapToggle（不是 JS 動態生成的）。
+function initMcapToggle() {
+  const $mcapToggle = document.getElementById("mcapToggle");
+  if (!$mcapToggle) return;
+  $mcapToggle.checked = mcapExpanded;
+  $mcapToggle.addEventListener("change", (e) => {
+    setMcapExpanded(e.target.checked);
   });
 }
 
@@ -569,6 +602,7 @@ window.addEventListener("online", () => {
 
 initTicker();
 initTickerToggle();
+initMcapToggle();
 
 buildSkeleton();
 loadData();

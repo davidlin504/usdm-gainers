@@ -288,7 +288,6 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 6px;
 }
 
 .row__mcap-item {
@@ -315,7 +314,26 @@ html, body {
   font-family: var(--mono);
   font-size: 9px;
   color: var(--text-faint);
+}
+
+/* 收闔動畫用 grid-template-rows: 0fr ↔ 1fr（搭配子層 overflow:hidden）而不是
+   height:auto 或猜一個 max-height px 值。這個寫法不管內容實際高度是多少都能平滑
+   展開/收闔，不會有「一開始瞬間跳到全高」或「收闔時內容先被砍掉再變矮」那種抖動感。
+   市值現在是全部 row 一起展開/收闔（見 index.html 的 #mcapToggle），
+   所以這裡不再需要每一行自己的 toggle 按鈕。 */
+.row__mcap-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
   margin-top: 6px;
+  transition: grid-template-rows 0.25s ease;
+}
+.row__mcap-collapse.is-open {
+  grid-template-rows: 1fr;
+}
+.row__mcap-collapse-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .row__stats { text-align: right; }
@@ -410,9 +428,9 @@ body.is-ticker-mode.has-error .ticker {
   align-items: center;
   overflow: hidden;
   white-space: nowrap;
-  /* border-bottom: 1px solid var(--border); */
   padding: 16px 0;
-  /* min-height: 320px;  */
+  /* border-bottom: 1px solid var(--border);
+  min-height: 320px;  */
   /* 跟原本 .content 的 min-height 對齊，避免切換時版面高度跳動 */
 }
 
@@ -424,15 +442,14 @@ body.is-ticker-mode.has-error .ticker {
   animation-name: ticker-scroll-right;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-  animation-duration: 20s;
   will-change: transform;
 }
 
 /* 內容重複兩份（見 app.js renderTicker），從 0% 跑到 -50%，
-   兩份接縫的瞬間視覺上完全銜接，看起來像無限往左捲動。 */
+   兩份接縫的瞬間視覺上完全銜接，看起來像無限往右捲動。 */
 @keyframes ticker-scroll-right {
   from { transform: translateX(0%); }
-  to { transform: translateX( -50%); }
+  to { transform: translateX(-50%); }
 }
 
 .ticker__item {
