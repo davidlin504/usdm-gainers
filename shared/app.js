@@ -250,6 +250,22 @@ function formatCompactUSD(n) {
   return `$${n.toFixed(2)}`;
 }
 
+// Vol/MCap 比率 (百分比數值，如 12.34 代表 12.34%) 轉換成 bar 寬度 (0~100，單位%)。
+// 對應範圍 0~300%，等比例對應 0~100% 寬度；超過 300% 一律畫滿 100%（顏色改成黃色警示）。
+function ratioToBarWidth(ratioPercent) {
+  const clamped = Math.min(Math.max(ratioPercent, 0), 300);
+  return (clamped / 300) * 100;
+}
+
+function renderRatioBar(ratioPercent) {
+  if (typeof ratioPercent !== "number" || Number.isNaN(ratioPercent)) return "";
+  const colorClass = ratioPercent > 300 ? "bar-yellow" : "bar-green";
+  const width = ratioToBarWidth(ratioPercent).toFixed(1);
+  return `
+    <div class="row__bar-fill ${colorClass}" style="width:${width}%"></div>
+  `;
+}
+
 function renderMarketCapInfo(info, quoteVolume) {
   const innerHtml =
     !info || typeof info.marketCap !== "number"
@@ -257,15 +273,26 @@ function renderMarketCapInfo(info, quoteVolume) {
       : (() => {
           const mcap = formatCompactUSD(info.marketCap);
           const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
-          const ratio =
+          const ratioValue =
             typeof quoteVolume === "number" && info.marketCap > 0
-              ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
-              : "—";
+              ? (quoteVolume / info.marketCap) * 100
+              : null;
+          const ratio = ratioValue !== null ? `${ratioValue.toFixed(2)}%` : "—";
+          const ratioBarHtml = renderRatioBar(ratioValue);
           return `
-            <div class="row__mcap">
-              <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
-              <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
-              <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
+            <div>
+              <div class="row__bar-item">
+                <span class="row__bar-item-label">mc</span>
+                <div class="row__bar-track">
+                  <span class="row__bar-mid"></span>
+                  ${ratioBarHtml}
+                </div>
+              </div>
+              <div class="row__mcap">
+                <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
+                <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
+                <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
+              </div>
             </div>`;
         })();
 

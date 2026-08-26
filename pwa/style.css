@@ -10,6 +10,7 @@
   --up-dim: rgba(23, 230, 161, 0.12);
   --down: #ff5470;
   --down-dim: rgba(255, 84, 112, 0.12);
+  --warn: #ffd54a;
   --accent: #17e6a1;
   --mono: "SF Mono", "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", Inter, sans-serif;
@@ -299,7 +300,33 @@ html, body {
   gap: 3px;
   font-size: 16px;
   color: #DEB887;
+  flex-direction: column;
 }
+
+.row__ratio-bar-track {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  width: 60px;
+  height: 4px;
+  margin-left: 6px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.row__ratio-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 2px;
+  animation: barZoomIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left center;
+}
+
+.row__bar-fill.bar-green { background: var(--up); }
+.row__bar-fill.bar-yellow { background: var(--warn); }
 
 .row__mcap-label {
   font-size: 16px;
