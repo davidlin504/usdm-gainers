@@ -277,6 +277,12 @@ html, body {
   transform-origin: right center;
 }
 
+.row__bar-fill.bar-yellow {
+  left: 50%;
+  background: var(--warn);
+  transform-origin: left center;
+}
+
 @keyframes barZoomIn {
   from { transform: scaleX(0); opacity: 0.5; }
   to { transform: scaleX(1); opacity: 1; }
@@ -289,6 +295,8 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+  justify-content: center;
 }
 
 .row__mcap-item {
@@ -352,7 +360,7 @@ html, body {
   display: grid;
   grid-template-rows: 0fr;
   overflow: hidden;
-  margin-top: 6px;
+  margin-top: 4px;
   transition: grid-template-rows 0.25s ease;
 }
 .row__mcap-collapse.is-open {
@@ -554,4 +562,8 @@ body.is-ticker-mode.has-error .ticker {
 .toggle input:checked + .toggle__track .toggle__thumb {
   transform: translateX(14px);
   background: var(--accent);
+}
+
+.toggle__label {
+  padding-right: 3px;
 }
