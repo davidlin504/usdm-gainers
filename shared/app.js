@@ -18,6 +18,18 @@ const API_URL = `${API_BASE}/fapi/v1/ticker/24hr`;
 const REFRESH_SECONDS = 300;
 const TOP_N = 5;
 
+// 跑馬燈模式的參數：
+// - TICKER_SPEED_PX_PER_SEC：捲動速度固定用「像素/秒」表示，而不是固定秒數。
+//   這樣不管 TOP_N 是 5 個還是 20 個，捲動的視覺速度都一樣，只是內容長動畫秒數自然變長，
+//   不會發生「項目一多，反而跑更快」的情況。
+// - TICKER_MIN_DURATION_S：內容太短（例如只有 1、2 個 token）時的動畫秒數下限，避免跑太快看不清楚。
+const TICKER_SPEED_PX_PER_SEC = 40;
+const TICKER_MIN_DURATION_S = 4;
+
+// 記住最近一次 renderRows() 用的資料，這樣切換到跑馬燈模式時可以直接拿現有資料渲染，
+// 不需要重新打 API。
+let lastRenderedItems = [];
+
 const $content = document.getElementById("content");
 const $skeleton = document.getElementById("skeleton");
 const $errorBox = document.getElementById("errorBox");
@@ -27,6 +39,10 @@ const $countdown = document.getElementById("countdown");
 const $refreshBtn = document.getElementById("refreshBtn");
 const $retryBtn = document.getElementById("retryBtn");
 const $liveDot = document.getElementById("liveDot");
+
+// 跑馬燈相關的 DOM 節點是動態建立的（見 initTicker()），先宣告成可重新賦值的變數。
+let $tickerBar = null;
+let $tickerTrack = null;
 
 let countdownTimer = null;
 let refreshTimer = null;
@@ -310,7 +326,101 @@ function renderDayChangeTexts(dayChanges) {
   }).join("");
 }
 
+function renderQuoteVolumeRatio(info, quoteVolume) {
+  if (!info || typeof info.marketCap !== "number") {
+    return `<div class="row__mcap row__mcap--na">市值資料暫無</div>`;
+  }
+  const ratio =
+  typeof quoteVolume === "number" && info.marketCap > 0
+    ? `${((quoteVolume / info.marketCap) * 100).toFixed(2)}%`
+    : "—";
+  return `
+    <span class="row__ratio">${ratio}</span>
+  `;
+}
+
+// 跑馬燈模式下一個 token 的內容：rank symbol price change，四段資訊都在同一行、同一個字級（>=16px）。
+function buildTickerItemHtml(item, idx) {
+  const { base, quote } = splitSymbol(item.symbol);
+  const pct = Number(item.priceChangePercent);
+  const has = !Number.isNaN(pct);
+  const cls = has ? (pct >= 0 ? "is-up" : "is-down") : "is-na";
+  const text = has ? `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%` : "—";
+
+  return `
+    <span class="ticker__item">
+      <span class="ticker__rank">${idx + 1}</span>
+      <span class="ticker__symbol">${base}/${quote}</span>
+      <span class="ticker__price">${formatPrice(item.lastPrice)}</span>
+      <span class="ticker__change ${cls}">${text}</span>
+    </span>`;
+}
+
+// 把 top_n 渲染成一條跑馬燈。做法是把內容重複兩份接在一起，
+// 動畫從 translateX(-50%) 跑到 translateX(0%)：因為兩份內容完全一樣，
+// 跑到一半（第二份接上第一份的瞬間）視覺上完全無縫，看起來像無限向右捲動。
+function renderTicker(items) {
+  if (!$tickerTrack) return;
+  if (!items || items.length === 0) {
+    $tickerTrack.innerHTML = "";
+    return;
+  }
+
+  const singleHtml = items.map((item, idx) => buildTickerItemHtml(item, idx)).join("");
+  $tickerTrack.innerHTML = singleHtml + singleHtml;
+
+  // 動畫秒數要換算成「固定 px/s」，等 DOM 真的量得到寬度後才能算，所以放進 rAF。
+  requestAnimationFrame(() => {
+    const halfWidth = $tickerTrack.scrollWidth / 2; // 兩份內容，取其中一份的寬度
+    const duration = Math.max(halfWidth / TICKER_SPEED_PX_PER_SEC, TICKER_MIN_DURATION_S);
+    $tickerTrack.style.animationDuration = `${duration}s`;
+  });
+}
+
+// 切換「只剩一行、跑馬燈」模式跟「原本樣式」，靠 body 上的 class driving CSS 顯示/隱藏，
+// JS 本身不用管哪些區塊要藏——樣式全部交給 style.css 的 .is-ticker-mode 規則。
+function setTickerMode(enabled) {
+  document.body.classList.toggle("is-ticker-mode", enabled);
+  if (enabled) renderTicker(lastRenderedItems);
+}
+
+// toggle 開關現在直接寫在 index.html 的 header 裡（不是 JS 動態生成），
+// 這裡只需要抓到它、綁上事件即可。
+// 註：故意放在 header 而不是 footer——因為跑馬燈模式會把整個 footer 藏起來，
+// 如果 toggle 放在 footer，切成跑馬燈之後就再也點不到它、切不回來了。
+function initTickerToggle() {
+  const $tickerToggle = document.getElementById("tickerToggle");
+  if (!$tickerToggle) return;
+  $tickerToggle.addEventListener("change", (e) => {
+    setTickerMode(e.target.checked);
+  });
+}
+
+// 建立跑馬燈的容器，插在 $content 前面（兩者都是 .app 底下的直接子元素）。
+// 注意：不能插在 $skeleton 前面——$skeleton 是 $content 的子元素，不是它的 sibling，
+// 對 $content.parentElement 呼叫 insertBefore(..., $skeleton) 會直接噴錯。
+function initTicker() {
+  const tickerBar = document.createElement("div");
+  tickerBar.className = "ticker";
+  tickerBar.id = "tickerBar";
+
+  const tickerTrack = document.createElement("div");
+  tickerTrack.className = "ticker__track";
+  tickerTrack.id = "tickerTrack";
+
+  tickerBar.appendChild(tickerTrack);
+  $content.parentElement.insertBefore(tickerBar, $content);
+
+  $tickerBar = tickerBar;
+  $tickerTrack = tickerTrack;
+}
+
 function renderRows(items) {
+  lastRenderedItems = items;
+  if (document.body.classList.contains("is-ticker-mode")) {
+    renderTicker(items);
+  }
+
   $content.innerHTML = "";
 
   items.forEach((item, idx) => {
@@ -330,7 +440,7 @@ function renderRows(items) {
     row.title = `在幣安開啟 ${base}/${quote} 交易頁`;
 
     const rankClass = idx < 3 ? ` row__rank--${idx + 1}` : "";
-    
+
     row.innerHTML = `
       <div class="row__rank${rankClass}">${idx + 1}</div>
       <div class="row__main">
@@ -357,14 +467,22 @@ function showError(message) {
   $content.hidden = true;
   $errorBox.hidden = false;
   $errorText.textContent = message;
+  // 用 body class 標記「目前顯示錯誤」，讓跑馬燈模式底下也能正確蓋掉跑馬燈，
+  // 顯示這一行連線錯誤訊息＋重試按鈕（見 style.css 的 .has-error 規則）。
+  document.body.classList.add("has-error");
 }
 
 function hideError() {
   $errorBox.hidden = true;
   $content.hidden = false;
+  document.body.classList.remove("has-error");
 }
 
 async function fetchTopGainers() {
+  if (!navigator.onLine) {
+    throw new Error("目前沒有網路連線，請確認連線後按重試");
+  }
+
   const res = await fetch(API_URL);
   if (!res.ok) {
     throw new Error(`Binance API 回應錯誤 (${res.status})`);
@@ -438,6 +556,19 @@ function startTimers() {
 
 $refreshBtn.addEventListener("click", loadData);
 $retryBtn.addEventListener("click", loadData);
+
+// 瀏覽器原生的斷線/恢復連線事件：斷線時立刻顯示錯誤訊息（不用等到下一次排程 fetch 才發現），
+// 恢復連線時自動重新載入一次，成功的話 hideError() 會自動把 error 狀態收掉。
+window.addEventListener("offline", () => {
+  showError("網路連線中斷，請確認連線後按重試");
+  $liveDot.style.background = "var(--down)";
+});
+window.addEventListener("online", () => {
+  loadData();
+});
+
+initTicker();
+initTickerToggle();
 
 buildSkeleton();
 loadData();
