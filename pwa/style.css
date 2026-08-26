@@ -442,10 +442,10 @@ html, body {
    它本身有沒有顯示是靠 JS 切換的 [hidden] 屬性控制，跟目前是不是跑馬燈模式無關。 */
 .ticker { display: none; }
 
-body.is-ticker-mode .subbar,
+/* body.is-ticker-mode .subbar, */
+/* body.is-ticker-mode .app__footer,  */
 body.is-ticker-mode .content,
-body.is-ticker-mode .skeleton-list,
-body.is-ticker-mode .app__footer {
+body.is-ticker-mode .skeleton-list {
   display: none;
 }
 
