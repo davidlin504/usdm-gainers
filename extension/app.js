@@ -215,7 +215,9 @@ async function fetchMarketCaps(symbols) {
     if (sym && !(sym in map)) {
       map[sym] = {
         marketCap: coin.market_cap,
-        fdv: coin.current_price * coin.max_supply,
+        fdv: coin.max_supply
+          ? coin.current_price * coin.max_supply
+          : coin.current_price * coin.total_supply,
         volume24h: coin.total_volume,
       };
     }
