@@ -469,22 +469,25 @@ body.is-ticker-mode.has-error .ticker {
   /* 跟原本 .content 的 min-height 對齊，避免切換時版面高度跳動 */
 }
 
+/* transform 現在改由 app.js 的 rAF 迴圈手動控制（見 tickerTick/applyTickerTransform），
+   不再用 CSS @keyframes：這樣滑鼠停留時可以暫停、也可以手動拖曳左右移動，
+   離開後再從目前位置接續自動捲動，全部共用同一個 tickerPosition 就不會有跳格的問題。
+   touch-action: none 是為了在觸控裝置上讓左右拖曳手勢直接交給我們自己處理，
+   不會被瀏覽器當成頁面捲動而互相搶手勢。 */
 .ticker__track {
   display: inline-flex;
   align-items: center;
   gap: 40px;
   padding-left: 40px;
-  animation-name: ticker-scroll-right;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
   will-change: transform;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
-/* 內容重複兩份（見 app.js renderTicker），從 0% 跑到 -50%，
-   兩份接縫的瞬間視覺上完全銜接，看起來像無限往右捲動。 */
-@keyframes ticker-scroll-right {
-  from { transform: translateX(0%); }
-  to { transform: translateX(-50%); }
+.ticker__track:active,
+.ticker.is-dragging .ticker__track {
+  cursor: grabbing;
 }
 
 .ticker__item {

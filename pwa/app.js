@@ -18,13 +18,10 @@ const API_URL = `${API_BASE}/fapi/v1/ticker/24hr`;
 const REFRESH_SECONDS = 300;
 const TOP_N = 5;
 
-// 跑馬燈模式的參數：
-// - TICKER_SPEED_PX_PER_SEC：捲動速度固定用「像素/秒」表示，而不是固定秒數。
-//   這樣不管 TOP_N 是 5 個還是 20 個，捲動的視覺速度都一樣，只是內容長動畫秒數自然變長，
-//   不會發生「項目一多，反而跑更快」的情況。
-// - TICKER_MIN_DURATION_S：內容太短（例如只有 1、2 個 token）時的動畫秒數下限，避免跑太快看不清楚。
+// 跑馬燈模式的參數：捲動速度固定用「像素/秒」表示，而不是固定秒數。
+// 這樣不管 TOP_N 是 5 個還是 20 個，捲動的視覺速度都一樣，只是內容長走完一圈的時間自然變長，
+// 不會發生「項目一多，反而跑更快」的情況。
 const TICKER_SPEED_PX_PER_SEC = 40;
-const TICKER_MIN_DURATION_S = 4;
 
 // 市值區塊是否展開，現在是「全部一起開／全部一起關」的單一全域狀態
 //（不再逐個 symbol 記憶，改由 index.html 裡的一個 toggle 統一控制，見 initMcapToggle()）。
@@ -47,6 +44,18 @@ const $liveDot = document.getElementById("liveDot");
 // 跑馬燈相關的 DOM 節點是動態建立的（見 initTicker()），先宣告成可重新賦值的變數。
 let $tickerBar = null;
 let $tickerTrack = null;
+
+// 跑馬燈改成用 rAF 手動驅動 transform（不再用 CSS @keyframes），
+// 這樣才能在滑鼠停留時暫停、拖曳時手動控制位移，離開後再從目前位置接續自動捲動。
+// tickerPosition 的單位是 px，對應 translateX(-tickerPosition)。
+let tickerPosition = 0;
+let tickerHalfWidth = 0; // 內容重複兩份，其中一份的寬度，用來做無限捲動的 wrap
+let tickerHovered = false;
+let tickerDragging = false;
+let tickerDragStartX = 0;
+let tickerDragStartPosition = 0;
+let tickerRafId = null;
+let tickerLastTs = null;
 
 let countdownTimer = null;
 let refreshTimer = null;
@@ -399,31 +408,104 @@ function buildTickerItemHtml(item, idx) {
 }
 
 // 把 top_n 渲染成一條跑馬燈。做法是把內容重複兩份接在一起，
-// 動畫從 translateX(-50%) 跑到 translateX(0%)：因為兩份內容完全一樣，
-// 跑到一半（第二份接上第一份的瞬間）視覺上完全無縫，看起來像無限向右捲動。
+// 用 tickerPosition 從 0 累加到 halfWidth 再 wrap 回 0：因為兩份內容完全一樣，
+// wrap 的瞬間視覺上完全無縫，看起來像無限向左捲動。
 function renderTicker(items) {
   if (!$tickerTrack) return;
   if (!items || items.length === 0) {
     $tickerTrack.innerHTML = "";
+    tickerHalfWidth = 0;
     return;
   }
 
   const singleHtml = items.map((item, idx) => buildTickerItemHtml(item, idx)).join("");
   $tickerTrack.innerHTML = singleHtml + singleHtml;
 
-  // 動畫秒數要換算成「固定 px/s」，等 DOM 真的量得到寬度後才能算，所以放進 rAF。
+  // 寬度要等 DOM 真的量得到之後才能算，所以放進 rAF。
+  // 內容變動後 wrap 長度也會變，用 modulo 對齊到新的 halfWidth，避免畫面跳一下。
   requestAnimationFrame(() => {
     const halfWidth = $tickerTrack.scrollWidth / 2; // 兩份內容，取其中一份的寬度
-    const duration = Math.max(halfWidth / TICKER_SPEED_PX_PER_SEC, TICKER_MIN_DURATION_S);
-    $tickerTrack.style.animationDuration = `${duration}s`;
+    tickerHalfWidth = halfWidth;
+    if (halfWidth > 0) tickerPosition %= halfWidth;
+    applyTickerTransform();
   });
 }
 
+function applyTickerTransform() {
+  if (!$tickerTrack) return;
+  $tickerTrack.style.transform = `translateX(${-tickerPosition}px)`;
+}
+
+// 每一幀依照經過的時間往前捲動，除非滑鼠停留（tickerHovered）或正在被拖曳（tickerDragging）。
+function tickerTick(ts) {
+  if (tickerLastTs === null) tickerLastTs = ts;
+  const dt = (ts - tickerLastTs) / 1000;
+  tickerLastTs = ts;
+
+  if (tickerHalfWidth > 0 && !tickerHovered && !tickerDragging) {
+    tickerPosition = (tickerPosition + TICKER_SPEED_PX_PER_SEC * dt) % tickerHalfWidth;
+  }
+  applyTickerTransform();
+  tickerRafId = requestAnimationFrame(tickerTick);
+}
+
+function startTickerLoop() {
+  if (tickerRafId !== null) return;
+  tickerLastTs = null;
+  tickerRafId = requestAnimationFrame(tickerTick);
+}
+
+function stopTickerLoop() {
+  if (tickerRafId !== null) cancelAnimationFrame(tickerRafId);
+  tickerRafId = null;
+  tickerLastTs = null;
+}
+
+// 把某個位移值 wrap 進 [0, tickerHalfWidth) 範圍內，讓拖曳可以左右無限循環，不會拖到底就卡住。
+function wrapTickerPosition(pos) {
+  if (tickerHalfWidth <= 0) return 0;
+  return ((pos % tickerHalfWidth) + tickerHalfWidth) % tickerHalfWidth;
+}
+
+function onTickerPointerDown(e) {
+  if (tickerHalfWidth <= 0) return;
+  tickerDragging = true;
+  tickerDragStartX = e.clientX;
+  tickerDragStartPosition = tickerPosition;
+  $tickerBar?.classList.add("is-dragging");
+}
+
+function onTickerPointerMove(e) {
+  if (!tickerDragging) return;
+  const dx = e.clientX - tickerDragStartX;
+  // 手指/滑鼠往右拖 -> 內容跟著往右移（position 變小）；往左拖則反過來。
+  tickerPosition = wrapTickerPosition(tickerDragStartPosition - dx);
+  applyTickerTransform();
+}
+
+function onTickerPointerUp() {
+  if (!tickerDragging) return;
+  tickerDragging = false;
+  $tickerBar?.classList.remove("is-dragging");
+}
+
+// 拖曳用 window 層級的 move/up 監聽（而不是綁在 ticker 本身），
+// 這樣手指/滑鼠拖出跑馬燈範圍外時還是能正確收到後續事件，不會卡在拖曳中的狀態。
+window.addEventListener("pointermove", onTickerPointerMove);
+window.addEventListener("pointerup", onTickerPointerUp);
+window.addEventListener("pointercancel", onTickerPointerUp);
+
 // 切換「只剩一行、跑馬燈」模式跟「原本樣式」，靠 body 上的 class driving CSS 顯示/隱藏，
 // JS 本身不用管哪些區塊要藏——樣式全部交給 style.css 的 .is-ticker-mode 規則。
+// rAF 迴圈只在跑馬燈模式開啟時跑，避免隱藏時還在背景做無意義的運算。
 function setTickerMode(enabled) {
   document.body.classList.toggle("is-ticker-mode", enabled);
-  if (enabled) renderTicker(lastRenderedItems);
+  if (enabled) {
+    renderTicker(lastRenderedItems);
+    startTickerLoop();
+  } else {
+    stopTickerLoop();
+  }
 }
 
 // toggle 開關現在直接寫在 index.html 的 header 裡（不是 JS 動態生成），
@@ -455,6 +537,14 @@ function initTicker() {
 
   $tickerBar = tickerBar;
   $tickerTrack = tickerTrack;
+
+  // 滑鼠/手指停留在跑馬燈上就暫停自動捲動；離開時恢復（若正在拖曳，順便結束拖曳）。
+  $tickerBar.addEventListener("pointerenter", () => { tickerHovered = true; });
+  $tickerBar.addEventListener("pointerleave", () => {
+    tickerHovered = false;
+    onTickerPointerUp();
+  });
+  $tickerTrack.addEventListener("pointerdown", onTickerPointerDown);
 }
 
 function renderRows(items) {
