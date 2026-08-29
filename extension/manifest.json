@@ -23,5 +23,5 @@
   "host_permissions": [
     "https://fapi.binance.com/*"
   ],
-  "permissions": []
+  "permissions": ["contextMenus"]
 }
