@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>USDⓈ-M 漲幅榜（假資料預覽）</title>
+<meta name="theme-color" content="#0b0e14" />
+
+<link rel="stylesheet" href="./style.css" />
+<style>
+  /* 只給這個假資料預覽頁用的提示條，不影響 app.js/style.css 本身。 */
+  .mock-banner {
+    background: #3a2a00;
+    color: #ffcf5c;
+    font-family: monospace;
+    font-size: 12px;
+    text-align: center;
+    padding: 6px 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="mock-banner">⚠️ 假資料模式 (MOCK DATA) — 沒有呼叫任何真正的外部 API，資料是本機亂數產生的</div>
+
+  <div class="app">
+    <header class="app__header">
+      <div class="brand">
+        <span class="brand__dot" id="liveDot"></span>
+        <a class="rankings__url" href="https://www.binance.com/zh-TC/markets/trading_data/rankings" target="_blank">
+          <h1 class="brand__title">USD Features 漲幅榜</h1>
+        </a>
+      </div>
+      <label class="toggle" title="切換跑馬燈模式">
+        <span class="toggle__label">Lite</span>
+        <input type="checkbox" id="tickerToggle" />
+        <span class="toggle__track"><span class="toggle__thumb"></span></span>
+      </label>
+      <label class="toggle" title="顯示/隱藏市值資訊">
+        <span class="toggle__label">mcap</span>
+        <input type="checkbox" id="mcapToggle" />
+        <span class="toggle__track"><span class="toggle__thumb"></span></span>
+      </label>
+    </header>
+
+    <div class="subbar">
+      <span class="subbar__label">TOP 10 GAINERS · 24H</span>
+      <span class="subbar__updated" id="updatedAt">—</span>
+    </div>
+
+    <div id="content" class="content">
+      <div class="skeleton-list" id="skeleton">
+        <!-- skeleton rows injected by JS -->
+      </div>
+    </div>
+
+    <div id="errorBox" class="error-box" hidden>
+      <p id="errorText">無法載入資料</p>
+      <button id="retryBtn" class="retry-btn">重試</button>
+    </div>
+
+    <footer class="app__footer">
+      <span>資料來源：假資料（本機產生，非 Binance）</span>
+      <button id="refreshBtn" class="refresh-btn" title="立即重新整理" aria-label="重新整理">
+        <span id="countdown">30s</span>
+        <svg class="refresh-icon" viewBox="0 0 24 24" width="15" height="15"><path fill="#17e6a1" d="M12 5V2L7 6l5 4V7c3.31 0 6 2.69 6 6a5.99 5.99 0 0 1-9.7 4.7l-1.42 1.42A7.98 7.98 0 0 0 12 21c4.42 0 8-3.58 8-8s-3.58-8-8-8z"/></svg>
+      </button>
+    </footer>
+  </div>
+
+  <script>
+    // 假資料 fetch 攔截器。一定要在 app.js 載入之前執行，才能在 app.js 第一次
+    // 呼叫 fetch() 之前就把 window.fetch 換掉——這樣完全不會打到真正的
+    // Binance / CoinGecko API，改改 UI（例如加個 icon）不用等真的 API 回應就能驗證。
+    (function () {
+      // 簡單的可重現亂數（同一個 symbol 每次重新整理都會長一樣，方便比對畫面有沒有變化）。
+      function seededRandom(seed) {
+        let s = seed % 2147483647;
+        if (s <= 0) s += 2147483646;
+        return function () {
+          s = (s * 16807) % 2147483647;
+          return (s - 1) / 2147483646;
+        };
+      }
+      function hashSeed(str) {
+        let h = 0;
+        for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+        return Math.abs(h) || 1;
+      }
+
+      // TOP 5（依 priceChangePercent 排序後會落在前 5 名，用來驗證正常渲染）：
+      //   龙虾USDT   - 非英文字母的 base，驗證中文幣種名稱顯示
+      //   MAGMAUSDT  - 一般情況
+      //   NEWLISTUSDT- K 線資料不足（模擬新上市），驗證天數漲跌/beta 顯示「—」
+      //   NOCAPUSDC  - USDC 報價 + CoinGecko 查無市值，驗證「市值資料暫無」
+      //   BEATUSDT   - 一般情況
+      // 後面兩個 DUMMY 是低漲幅的干擾資料，用來驗證排序/取前 5 名的邏輯正確。
+      const MOCK_TICKERS = [
+        { symbol: "龙虾USDT", lastPrice: "0.06336", priceChangePercent: "45.12", quoteVolume: "386420000" },
+        { symbol: "MAGMAUSDT", lastPrice: "0.51657", priceChangePercent: "32.20", quoteVolume: "237370000" },
+        { symbol: "NEWLISTUSDT", lastPrice: "1.00000", priceChangePercent: "29.77", quoteVolume: "9000000" },
+        { symbol: "NOCAPUSDC", lastPrice: "0.12342", priceChangePercent: "23.41", quoteVolume: "15150000" },
+        { symbol: "BEATUSDT", lastPrice: "0.14670", priceChangePercent: "20.94", quoteVolume: "55010000" },
+        { symbol: "DUMMYAUSDT", lastPrice: "3.50000", priceChangePercent: "5.00", quoteVolume: "1000000" },
+        { symbol: "DUMMYBUSDT", lastPrice: "10.00000", priceChangePercent: "2.00", quoteVolume: "500000" },
+      ];
+
+      // beta 計算用的基準（BTCUSDT）不需要出現在 24hr 榜單裡，只需要能查到 klines。
+      const BENCHMARK_PRICE = { BTCUSDT: 68000 };
+
+      // CoinGecko 市值資料，key 是 base（不含 USDT/USDC）。刻意不給 NOCAP，
+      // 用來測試「市值資料暫無」那條路徑。
+      const MOCK_MARKET_CAPS = {
+        "龙虾": { marketCap: 42000000, price: 0.06336, maxSupply: 1000000000, volume: 20000000 },
+        MAGMA: { marketCap: 95000000, price: 0.51657, maxSupply: 300000000, volume: 45000000 },
+        NEWLIST: { marketCap: 6000000, price: 1.0, maxSupply: 10000000, volume: 900000 },
+        BEAT: { marketCap: 18500000, price: 0.1467, maxSupply: 250000000, volume: 5200000 },
+      };
+
+      function priceOf(symbol) {
+        const t = MOCK_TICKERS.find((x) => x.symbol === symbol);
+        if (t) return Number(t.lastPrice);
+        if (symbol in BENCHMARK_PRICE) return BENCHMARK_PRICE[symbol];
+        return 1;
+      }
+
+      function fakeKlines(symbol, limit) {
+        // NEWLISTUSDT 故意只給 2 根K棒，模擬新上市幣種資料不足的情況。
+        if (symbol === "NEWLISTUSDT") {
+          const p = priceOf(symbol);
+          return [
+            [0, 0, 0, 0, String(p * 0.97), 0],
+            [0, 0, 0, 0, String(p), 0],
+          ];
+        }
+        const target = priceOf(symbol);
+        const rand = seededRandom(hashSeed(symbol));
+        let price = target / (1 + rand() * 0.6 + 0.2); // 起點比目前價低，模擬「這幾天在漲」
+        const rows = [];
+        for (let i = 0; i < limit; i++) {
+          const isLast = i === limit - 1;
+          price = isLast ? target : Math.max(price * (1 + (rand() - 0.47) * 0.1), 1e-8);
+          rows.push([0, price, price, price, String(price), 0]);
+        }
+        return rows;
+      }
+
+      function fakeMarketCapCoins(symbolsLower) {
+        return symbolsLower
+          .map((s) => s.toUpperCase())
+          .filter((base) => base in MOCK_MARKET_CAPS)
+          .map((base) => {
+            const m = MOCK_MARKET_CAPS[base];
+            return {
+              symbol: base,
+              market_cap: m.marketCap,
+              current_price: m.price,
+              max_supply: m.maxSupply,
+              total_supply: m.maxSupply,
+              total_volume: m.volume,
+            };
+          });
+      }
+
+      function jsonResponse(data) {
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      window.fetch = async function mockFetch(input) {
+        const url = typeof input === "string" ? input : input.url;
+
+        if (url.includes("/fapi/v1/ticker/24hr")) {
+          return jsonResponse(MOCK_TICKERS);
+        }
+
+        if (url.includes("/fapi/v1/klines")) {
+          const params = new URL(url).searchParams;
+          const symbol = params.get("symbol");
+          const limit = Number(params.get("limit")) || 31;
+          return jsonResponse(fakeKlines(symbol, limit));
+        }
+
+        if (url.includes("/coins/markets")) {
+          const params = new URL(url).searchParams;
+          const symbols = (params.get("symbols") || "").split(",").filter(Boolean);
+          return jsonResponse(fakeMarketCapCoins(symbols));
+        }
+
+        throw new Error(`mock.html 沒有攔截到這個網址，請補上假資料: ${url}`);
+      };
+    })();
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>

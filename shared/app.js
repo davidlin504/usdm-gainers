@@ -275,6 +275,29 @@ function renderRatioBar(ratioPercent) {
   `;
 }
 
+// Vol/MCap 比率同時被「mc」bar（永遠顯示在 row__bars）跟收合區塊裡的文字
+// (row__mcap-item) 用到，抽出來共用同一個算法。
+function computeVolMcapRatio(marketCap, quoteVolume) {
+  return typeof marketCap === "number" && marketCap > 0 && typeof quoteVolume === "number"
+    ? (quoteVolume / marketCap) * 100
+    : null;
+}
+
+// mc（Vol/MCap）bar：原本跟市值/FDV文字一起放在可收合的 row__mcap-collapse 裡，
+// 現在移到 row__bars，跟 3D/7D bar 並排、永遠顯示，不受 mcap 收合開關影響。
+function renderMcapRatioBar(info, quoteVolume) {
+  const ratioValue = info ? computeVolMcapRatio(info.marketCap, quoteVolume) : null;
+  const ratioBarHtml = ratioValue !== null ? renderRatioBar(ratioValue) : "";
+  return `
+    <div class="row__bar-item">
+      <span class="row__bar-item-label">mc</span>
+      <div class="row__bar-track">
+        <span class="row__bar-mid"></span>
+        ${ratioBarHtml}
+      </div>
+    </div>`;
+}
+
 function renderMarketCapInfo(info, quoteVolume) {
   const innerHtml =
     !info || typeof info.marketCap !== "number"
@@ -282,26 +305,13 @@ function renderMarketCapInfo(info, quoteVolume) {
       : (() => {
           const mcap = formatCompactUSD(info.marketCap);
           const fdv = typeof info.fdv === "number" ? formatCompactUSD(info.fdv) : "—";
-          const ratioValue =
-            typeof quoteVolume === "number" && info.marketCap > 0
-              ? (quoteVolume / info.marketCap) * 100
-              : null;
+          const ratioValue = computeVolMcapRatio(info.marketCap, quoteVolume);
           const ratio = ratioValue !== null ? `${ratioValue.toFixed(2)}%` : "—";
-          const ratioBarHtml = renderRatioBar(ratioValue);
           return `
-              <div>
-                <div class="row__bar-item">
-                  <span class="row__bar-item-label">mc</span>
-                  <div class="row__bar-track">
-                    <span class="row__bar-mid"></span>
-                    ${ratioBarHtml}
-                  </div>
-                </div>
-                <div class="row__mcap">
-                  <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
-                  <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
-                  <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
-                </div>
+              <div class="row__mcap">
+                <div class="row__mcap-item"><span class="row__mcap-label">市值</span>${mcap}</div>
+                <div class="row__mcap-item"><span class="row__mcap-label">FDV</span>${fdv}</div>
+                <div class="row__mcap-item"><span class="row__mcap-label">Vol/MCap</span>${ratio}</div>
               </div>`;
       })();
 
@@ -317,6 +327,16 @@ function renderMarketCapInfo(info, quoteVolume) {
 function buildBinanceUrl(symbol) {
   return `https://www.binance.com/zh-TC/futures/${symbol}?_from=markets`;
 }
+
+function buildSmartMoneyUrl(symbol) {
+  return `https://www.binance.com/zh-TC/smart-money/signal/${symbol}`;
+}
+
+// 合約頁 icon：簡單的漸升折線圖示。
+const FUTURES_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="14 7 21 7 21 14"></polyline></svg>`;
+
+// 聰明錢訊號頁 icon：雷達（同心圓 + 中心點 + 掃描線）。
+const RADAR_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5.5" stroke-opacity="0.6"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><path d="M12 12L19 6"></path></svg>`;
 
 function splitSymbol(symbol) {
   const quotes = ["USDT", "USDC", "BUSD"];
@@ -559,17 +579,18 @@ function renderRows(items) {
     const { base, quote } = splitSymbol(item.symbol);
     const pct = Number(item.priceChangePercent);
     const barsHtml = renderDayBars(item.dayChanges);
+    const mcapBarHtml = renderMcapRatioBar(item.marketCapInfo, Number(item.quoteVolume));
     const changeDaysHtml = renderDayChangeTexts(item.dayChanges);
     const quoteVolumeDisplay = formatCompactUSD(Number(item.quoteVolume));
     const mcapHtml = renderMarketCapInfo(item.marketCapInfo, Number(item.quoteVolume));
     const betaHtml = renderBeta(item.beta);
 
-    const row = document.createElement("a");
+    // row 本身不再是單一外部連結：合約頁／聰明錢訊號頁各自用獨立的 icon <a>
+    // 合約頁／聰明錢訊號頁的兩個外部連結，各自用獨立的 icon <a> 呈現在
+    // row__symbol 裡（水平排列），讓使用者自己選擇要去哪一個；quote 用
+    // margin-left: auto 推到 row__symbol 最右邊。
+    const row = document.createElement("div");
     row.className = "row";
-    row.href = buildBinanceUrl(item.symbol);
-    row.target = "_blank";
-    row.rel = "noopener noreferrer";
-    row.title = `在幣安開啟 ${base}/${quote} 交易頁`;
 
     const rankClass = idx < 3 ? ` row__rank--${idx + 1}` : "";
 
@@ -578,11 +599,13 @@ function renderRows(items) {
       <div class="row__main">
         <div class="row__symbol">
           <span class="row__base">${base}</span>
-          <span class="row__quote">/${quote}</span>
           <span class="row__quoteVolume">${quoteVolumeDisplay}</span>
           ${betaHtml}
+          <a class="row__icon-btn" href="${buildBinanceUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 合約頁">${FUTURES_ICON_SVG}</a>
+          <a class="row__icon-btn" href="${buildSmartMoneyUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
+          <span class="row__quote">/${quote}</span>
         </div>
-        <div class="row__bars">${barsHtml}</div>
+        <div class="row__bars">${barsHtml}${mcapBarHtml}</div>
         ${mcapHtml}
       </div>
       <div class="row__stats">
@@ -591,6 +614,7 @@ function renderRows(items) {
         <div class="row__change-days">${changeDaysHtml}</div>
       </div>
     `;
+
     $content.appendChild(row);
   });
 }
