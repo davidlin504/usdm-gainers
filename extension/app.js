@@ -424,6 +424,8 @@ function buildTickerItemHtml(item, idx) {
       <span class="ticker__symbol">${base}/${quote}</span>
       <span class="ticker__price">${formatPrice(item.lastPrice)}</span>
       <span class="ticker__change ${cls}">${text}</span>
+      <a class="row__icon-btn" href="${buildBinanceUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 合約頁">${FUTURES_ICON_SVG}</a>
+      <a class="row__icon-btn" href="${buildSmartMoneyUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
     </span>`;
 }
 
