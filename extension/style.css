@@ -138,8 +138,8 @@ html, body {
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--panel-alt);
@@ -149,7 +149,7 @@ html, body {
   cursor: pointer;
   transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
-.row__icon-btn svg { width: 11px; height: 11px; display: block; }
+.row__icon-btn svg { width: 22px; height: 22px; display: block; }
 .row__icon-btn:hover { opacity: 1; background: var(--panel); color: var(--accent); }
 .row__icon-btn:active { transform: scale(0.9); }
 
