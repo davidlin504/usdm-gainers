@@ -122,25 +122,36 @@ html, body {
   grid-template-columns: 22px 1fr auto;
   align-items: center;
   gap: 10px;
-  padding: 8px 6px;
+  padding: 9px 6px;
   border-radius: 10px;
   position: relative;
   overflow: hidden;
-}
-.row + .row { margin-top: 2px; }
-.row {
-  cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
-  grid-template-columns: 22px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 6px;
-  text-decoration: none;
+  transition: background 0.15s ease;
   color: inherit;
 }
+.row + .row { margin-top: 2px; }
 .row:hover { background: var(--panel-alt); }
 .row:hover .row__base { color: var(--accent); }
-.row:active { transform: scale(0.98); }
+
+.row__icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel-alt);
+  color: var(--text-dim);
+  text-decoration: none;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.row__icon-btn svg { width: 11px; height: 11px; display: block; }
+.row__icon-btn:hover { opacity: 1; background: var(--panel); color: var(--accent); }
+.row__icon-btn:active { transform: scale(0.9); }
 
 .row__change-days {
   display: flex;
@@ -181,7 +192,7 @@ html, body {
 
 .row__symbol {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 5px;
 }
 
@@ -195,6 +206,8 @@ html, body {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text-faint);
+  margin-left: auto;
+  padding-left: 5px;
 }
 
 .row__quoteVolume {
