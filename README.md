@@ -8,6 +8,7 @@
 shared/            <- 唯一要編輯的地方
   app.js           資料抓取、渲染邏輯（環境自動偵測，PWA/擴充功能通用）
   style.css        UI 樣式
+  mock.html        mock data
 
 pwa/               <- PWA 專屬殼
   index.html       PWA 進入點（含 iOS 加主畫面用的 meta tags）
@@ -49,3 +50,8 @@ sync.sh            把 shared/ 同步到 pwa/ 與 extension/
 - **PWA / 一般網頁**：沒有 `chrome.runtime` → 改打 `PWA_PROXY_BASE`（你的 Cloudflare Worker 網址，需要先部署 `worker/worker.js` 並把網址填進 `shared/app.js`）
 
 其他所有邏輯（抓漲幅榜、算 3D/7D 漲跌幅、渲染列表、點擊開幣安頁）完全共用，不需要為了哪個平台寫兩份。
+
+support outer link:
+https://www.binance.com/zh-TC/smart-money/signal/${symbol}
+
+https://www.binance.com/zh-TC/futures/${symbol}?_from=markets
