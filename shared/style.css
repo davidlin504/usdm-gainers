@@ -235,7 +235,7 @@ html, body {
 .row__quoteVolume {
   font-family: var(--mono);
   font-size: 16px;
-  color: var(--text);
+  color: var(--text-faint);
 }
 
 .row__beta {

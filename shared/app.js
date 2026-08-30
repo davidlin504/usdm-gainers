@@ -693,6 +693,7 @@ function renderRows(items) {
     // 合約頁／聰明錢訊號頁的兩個外部連結，各自用獨立的 icon <a> 呈現在
     // row__symbol 裡（水平排列），讓使用者自己選擇要去哪一個；quote 用
     // margin-left: auto 推到 row__symbol 最右邊。
+    // <span class="row__quote">/${quote}</span>
     const row = document.createElement("div");
     row.className = "row";
 
@@ -703,12 +704,10 @@ function renderRows(items) {
       <div class="row__main">
         <div class="row__symbol">
           <span class="row__base">${base}</span>
-          <span class="row__quoteVolume">${quoteVolumeDisplay}</span>
           ${betaHtml}
+          ${lsRatioHtml}
           <a class="row__icon-btn" href="${buildBinanceUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 合約頁">${FUTURES_ICON_SVG}</a>
           <a class="row__icon-btn" href="${buildSmartMoneyUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
-          ${lsRatioHtml}
-          <span class="row__quote">/${quote}</span>
         </div>
         <div class="row__bars">${barsHtml}${mcapBarHtml}</div>
         ${mcapHtml}
@@ -716,6 +715,7 @@ function renderRows(items) {
       </div>
       <div class="row__stats">
         <div class="row__price">${formatPrice(item.lastPrice)}</div>
+        <div class="row__quoteVolume">${quoteVolumeDisplay}</div>
         <div class="row__change">+${pct.toFixed(2)}%</div>
         <div class="row__change-days">${changeDaysHtml}</div>
       </div>
