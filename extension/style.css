@@ -115,6 +115,28 @@ html, body {
   color: var(--text-faint);
 }
 
+.range-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.range-toggle__btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.range-toggle__btn.is-active {
+  color: var(--up);
+  border-color: rgba(23, 230, 161, 0.35);
+  background: rgba(23, 230, 161, 0.12);
+}
+
 .content { padding: 6px 10px 4px; min-height: 320px; flex: 1; }
 
 .row {
@@ -230,6 +252,20 @@ html, body {
 .row__beta.is-lo { color: var(--up); border-color: rgba(23, 230, 161, 0.35); }
 .row__beta.is-na { color: var(--text-faint); }
 
+.row__ls-ratio {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--text-dim);
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+}
+
+.row__ls-ratio.is-long { color: var(--up); border-color: rgba(23, 230, 161, 0.35); }
+.row__ls-ratio.is-short { color: var(--down); border-color: rgba(255, 84, 112, 0.35); }
+.row__ls-ratio.is-na { color: var(--text-faint); }
+
 .row__bars {
   display: flex;
   flex-direction: column;
@@ -314,13 +350,11 @@ html, body {
 
 .row__mcap-item {
   font-family: var(--mono);
-  /* font-size: 9px;
-  color: var(--text-faint); */
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 16px;
-  color: #DEB887;
+  font-size: 13px;
+  color: var(--text);
   flex-direction: column;
 }
 
@@ -350,10 +384,8 @@ html, body {
 .row__bar-fill.bar-yellow { background: var(--warn); }
 
 .row__mcap-label {
-  font-size: 16px;
-  color: #DEB887;
-  /* font-size: 8px;
-  color: var(--text-faint); */
+  font-size: 9px;
+  color: var(--text-faint);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -362,6 +394,41 @@ html, body {
   font-family: var(--mono);
   font-size: 9px;
   color: var(--text-faint);
+}
+
+.row__smart-money {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.row__smart-money-item {
+  font-family: var(--mono);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  flex-direction: column;
+}
+
+.row__smart-money-item.is-long { color: var(--up); }
+.row__smart-money-item.is-short { color: var(--down); }
+
+.row__smart-money-label {
+  font-size: 9px;
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.row__smart-money--na {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-faint);
+  margin-top: 4px;
 }
 
 /* 收闔動畫用 grid-template-rows: 0fr ↔ 1fr（搭配子層 overflow:hidden）而不是

@@ -168,6 +168,19 @@
         });
       }
 
+      // 聰明錢 long/short 統計假資料。刻意讓 30m/1h 兩個 timeRange 數字不一樣，
+      // 這樣切換按鈕時畫面數字有跟著變，才能驗證「重新打 API + 重新渲染」真的生效。
+      // NEWLISTUSDT 故意不給資料，模擬 API 查無資料，驗證「聰明錢資料暫無」路徑。
+      function fakeSmartMoneyStats(symbol, timeRange) {
+        if (symbol === "NEWLISTUSDT") return null;
+        const rand = seededRandom(hashSeed(symbol + timeRange));
+        const longTraders = Math.floor(100 + rand() * 300);
+        const shortTraders = Math.floor(100 + rand() * 300);
+        const longPositions = 1e6 + rand() * 5e7;
+        const shortPositions = 1e6 + rand() * 5e7;
+        return { longTraders, shortTraders, longPositions, shortPositions };
+      }
+
       window.fetch = async function mockFetch(input) {
         const url = typeof input === "string" ? input : input.url;
 
@@ -186,6 +199,13 @@
           const params = new URL(url).searchParams;
           const symbols = (params.get("symbols") || "").split(",").filter(Boolean);
           return jsonResponse(fakeMarketCapCoins(symbols));
+        }
+
+        if (url.includes("/smart-money/signal/details/stats")) {
+          const params = new URL(url).searchParams;
+          const symbol = params.get("symbol");
+          const timeRange = params.get("timeRange");
+          return jsonResponse({ code: "000000", message: null, data: fakeSmartMoneyStats(symbol, timeRange), success: true });
         }
 
         throw new Error(`mock.html 沒有攔截到這個網址，請補上假資料: ${url}`);

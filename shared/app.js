@@ -332,6 +332,80 @@ function buildSmartMoneyUrl(symbol) {
   return `https://www.binance.com/zh-TC/smart-money/signal/${symbol}`;
 }
 
+// 聰明錢 long/short 持倉比 stats API：跟 fapi.binance.com 不同網域，
+// 但這個端點本身回 access-control-allow-origin: *，所以不用走 host_permissions
+// 或 PWA_PROXY_BASE，兩邊環境都能直接 fetch。
+const SMART_MONEY_STATS_URL = "https://www.binance.com/bapi/futures/v1/public/future/smart-money/signal/details/stats";
+
+async function fetchSmartMoneyStats(symbol, timeRange = "1h") {
+  const url = `${SMART_MONEY_STATS_URL}?symbol=${symbol}&timeRange=${timeRange}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`smart-money stats ${res.status}`);
+  const json = await res.json();
+  return json?.data || null;
+}
+
+// long/short 持倉比：用美元計價的 longPositions / shortPositions（不是人數），
+// 反映的是「誰的倉位大」而不是「誰的人數多」。
+function computeLongShortRatio(stats) {
+  if (!stats || typeof stats.longPositions !== "number" || typeof stats.shortPositions !== "number") return null;
+  if (stats.shortPositions <= 0) return null;
+  return stats.longPositions / stats.shortPositions;
+}
+
+// 目前選擇的聰明錢時間區間，預設 1h；由 initSmartMoneyRangeToggle() 的按鈕切換。
+const SMART_MONEY_TIME_RANGES = ["30m", "1h"];
+let smartMoneyTimeRange = "1h";
+
+async function attachSmartMoneyRatios(items) {
+  const results = await Promise.all(
+    items.map(async (item) => {
+      try {
+        const stats = await fetchSmartMoneyStats(item.symbol, smartMoneyTimeRange);
+        return { ...item, smartMoney: stats, longShortRatio: computeLongShortRatio(stats) };
+      } catch (err) {
+        console.warn(`聰明錢 long/short 比取得失敗: ${item.symbol}`, err);
+        return { ...item, smartMoney: null, longShortRatio: null };
+      }
+    })
+  );
+  return results;
+}
+
+// 切換 30m/1h 只需要重打聰明錢這一支 API，不用整個 loadData() 重來一次
+// （價格/多日漲幅/市值都跟時間區間無關，沿用 lastRenderedItems 現有資料就好）。
+async function refreshSmartMoney() {
+  if (lastRenderedItems.length === 0) return;
+  const updated = await attachSmartMoneyRatios(lastRenderedItems);
+  renderRows(updated);
+}
+
+async function onSmartMoneyRangeClick(e) {
+  const btn = e.target.closest(".range-toggle__btn");
+  if (!btn || btn.dataset.range === smartMoneyTimeRange) return;
+  smartMoneyTimeRange = btn.dataset.range;
+  document.querySelectorAll("#smartMoneyRangeToggle .range-toggle__btn").forEach((b) => {
+    b.classList.toggle("is-active", b.dataset.range === smartMoneyTimeRange);
+  });
+  await refreshSmartMoney();
+}
+
+// 動態建立 30m/1h 切換按鈕，插進 subbar（label 跟 updatedAt 之間），
+// 不用改 pwa/index.html 跟 extension/popup.html 兩份 HTML，維持「只改 shared/」的原則。
+function initSmartMoneyRangeToggle() {
+  const $subbar = document.querySelector(".subbar");
+  if (!$subbar) return;
+  const container = document.createElement("div");
+  container.className = "range-toggle";
+  container.id = "smartMoneyRangeToggle";
+  container.innerHTML = SMART_MONEY_TIME_RANGES.map(
+    (range) =>
+      `<button type="button" class="range-toggle__btn${range === smartMoneyTimeRange ? " is-active" : ""}" data-range="${range}">${range}</button>`
+  ).join("");
+  $subbar.insertBefore(container, $updatedAt);
+  container.addEventListener("click", onSmartMoneyRangeClick);
+}
+
 // 合約頁 icon：簡單的漸升折線圖示。
 const FUTURES_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="14 7 21 7 21 14"></polyline></svg>`;
 
@@ -382,6 +456,32 @@ function renderBeta(beta) {
   if (!has) return `<span class="row__beta is-na">β —</span>`;
   const cls = beta >= 1 ? "is-hi" : "is-lo"; // >=1：波動比 BTC 大；<1：比 BTC 小
   return `<span class="row__beta ${cls}">β ${beta.toFixed(2)}</span>`;
+}
+
+function renderLongShortRatio(ratio) {
+  const has = typeof ratio === "number" && !Number.isNaN(ratio);
+  if (!has) return `<span class="row__ls-ratio is-na">L/S —</span>`;
+  const cls = ratio >= 1 ? "is-long" : "is-short"; // >=1：聰明錢多方倉位比空方大
+  return `<span class="row__ls-ratio ${cls}">L/S ${ratio.toFixed(2)}</span>`;
+}
+
+// 聰明錢 long/short 明細：把 API 回來的四個原始數字（不是算出來的比率）
+// 分別呈現，跟市值區塊一樣的 item/label 排版。
+function renderSmartMoneyDetails(stats) {
+  if (!stats || typeof stats.longPositions !== "number") {
+    return `<div class="row__smart-money row__smart-money--na">聰明錢資料暫無</div>`;
+  }
+  const longPositions = formatCompactUSD(stats.longPositions);
+  const shortPositions = formatCompactUSD(stats.shortPositions);
+  const longTraders = typeof stats.longTraders === "number" ? stats.longTraders.toLocaleString("en-US") : "—";
+  const shortTraders = typeof stats.shortTraders === "number" ? stats.shortTraders.toLocaleString("en-US") : "—";
+  return `
+    <div class="row__smart-money">
+      <div class="row__smart-money-item is-long"><span class="row__smart-money-label">Long 倉位</span>${longPositions}</div>
+      <div class="row__smart-money-item is-long"><span class="row__smart-money-label">Long 人數</span>${longTraders}</div>
+      <div class="row__smart-money-item is-short"><span class="row__smart-money-label">Short 倉位</span>${shortPositions}</div>
+      <div class="row__smart-money-item is-short"><span class="row__smart-money-label">Short 人數</span>${shortTraders}</div>
+    </div>`;
 }
 
 function renderDayChangeTexts(dayChanges) {
@@ -586,6 +686,8 @@ function renderRows(items) {
     const quoteVolumeDisplay = formatCompactUSD(Number(item.quoteVolume));
     const mcapHtml = renderMarketCapInfo(item.marketCapInfo, Number(item.quoteVolume));
     const betaHtml = renderBeta(item.beta);
+    const lsRatioHtml = renderLongShortRatio(item.longShortRatio);
+    const smartMoneyHtml = renderSmartMoneyDetails(item.smartMoney);
 
     // row 本身不再是單一外部連結：合約頁／聰明錢訊號頁各自用獨立的 icon <a>
     // 合約頁／聰明錢訊號頁的兩個外部連結，各自用獨立的 icon <a> 呈現在
@@ -605,10 +707,12 @@ function renderRows(items) {
           ${betaHtml}
           <a class="row__icon-btn" href="${buildBinanceUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 合約頁">${FUTURES_ICON_SVG}</a>
           <a class="row__icon-btn" href="${buildSmartMoneyUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
+          ${lsRatioHtml}
           <span class="row__quote">/${quote}</span>
         </div>
         <div class="row__bars">${barsHtml}${mcapBarHtml}</div>
         ${mcapHtml}
+        ${smartMoneyHtml}
       </div>
       <div class="row__stats">
         <div class="row__price">${formatPrice(item.lastPrice)}</div>
@@ -704,6 +808,10 @@ async function loadData() {
     // 市值 / FDV / Vol-Mcap 比率來自 CoinGecko，跟上面的多日漲幅一樣採「先顯示、後補上」。
     const withMarketCaps = await attachMarketCaps(withDayChanges);
     renderRows(withMarketCaps);
+
+    // 聰明錢 long/short 持倉比同樣是額外一支 API，採「先顯示、後補上」。
+    const withSmartMoney = await attachSmartMoneyRatios(withMarketCaps);
+    renderRows(withSmartMoney);
   } catch (err) {
     console.error(err);
     showError(err.message || "網路連線失敗，請確認裝置已連上網際網路");
@@ -748,6 +856,7 @@ window.addEventListener("online", () => {
 initTicker();
 initTickerToggle();
 initMcapToggle();
+initSmartMoneyRangeToggle();
 
 buildSkeleton();
 loadData();

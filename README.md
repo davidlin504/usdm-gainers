@@ -55,3 +55,13 @@ sync.sh            把 shared/ 同步到 pwa/ 與 extension/
 https://www.binance.com/zh-TC/smart-money/signal/${symbol}
 
 https://www.binance.com/zh-TC/futures/${symbol}?_from=markets
+
+https://www.binance.com/bapi/futures/v1/public/future/smart-money/signal/details/stats?symbol=${symbol}&timeRange=1h
+
+show the properties
+longPositions
+longTraders
+
+shortPositions
+shortTraders
+
