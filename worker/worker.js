@@ -9,14 +9,16 @@
 
 const TARGET_ORIGIN = "https://fapi.binance.com";
 
-// 只允許轉發這兩個公開的市場資料端點，避免這個中繼站被拿去打其他 API
-const ALLOWED_PATHS = ["/fapi/v1/ticker/24hr", "/fapi/v1/klines"];
+// 只允許轉發這幾個端點，避免這個中繼站被拿去打其他 API。
+// /fapi/v3/account 是簽名端點：Worker 只是原封不動轉發 query string（已含 signature）
+// 跟 X-MBX-APIKEY header，Secret Key 從頭到尾不會經過這裡，簽名是瀏覽器端算好的。
+const ALLOWED_PATHS = ["/fapi/v1/ticker/24hr", "/fapi/v1/klines", "/fapi/v3/account"];
 
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, X-MBX-APIKEY",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -38,11 +40,16 @@ export default {
 
     const targetUrl = TARGET_ORIGIN + url.pathname + url.search;
 
+    // 簽名端點需要原封不動轉發客戶端算好的 X-MBX-APIKEY header 給 Binance。
+    const requestHeaders = { Accept: "application/json" };
+    const apiKey = request.headers.get("X-MBX-APIKEY");
+    if (apiKey) requestHeaders["X-MBX-APIKEY"] = apiKey;
+
     let upstreamRes;
     try {
       upstreamRes = await fetch(targetUrl, {
         method: "GET",
-        headers: { Accept: "application/json" },
+        headers: requestHeaders,
       });
     } catch (err) {
       return new Response(JSON.stringify({ error: "upstream fetch failed" }), {
@@ -52,11 +59,11 @@ export default {
     }
 
     const body = await upstreamRes.arrayBuffer();
-    const headers = new Headers();
-    headers.set("Content-Type", upstreamRes.headers.get("Content-Type") || "application/json");
-    headers.set("Cache-Control", "no-store");
-    Object.entries(corsHeaders()).forEach(([k, v]) => headers.set(k, v));
+    const responseHeaders = new Headers();
+    responseHeaders.set("Content-Type", upstreamRes.headers.get("Content-Type") || "application/json");
+    responseHeaders.set("Cache-Control", "no-store");
+    Object.entries(corsHeaders()).forEach(([k, v]) => responseHeaders.set(k, v));
 
-    return new Response(body, { status: upstreamRes.status, headers });
+    return new Response(body, { status: upstreamRes.status, headers: responseHeaders });
   },
 };
