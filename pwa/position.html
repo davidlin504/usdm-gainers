@@ -195,6 +195,40 @@
   }
   #positionsList.is-grid .pos-row { margin-bottom: 0; }
 
+  /* 列表顯示：只留 symbol / icon-btn / side / roi 一行，跟卡片顯示切換時共用同一個
+     進場動畫（見 .pos-row-enter），不用另外寫轉場邏輯。 */
+  .pos-list-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+  }
+  .pos-list-row__symbol {
+    font-weight: 700;
+    font-size: 13px;
+    flex: 1;
+    min-width: 0;
+  }
+  .pos-list-row__icons { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .pos-list-row__roi {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    min-width: 64px;
+    text-align: right;
+  }
+
+  @keyframes pos-row-enter {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .pos-row, .pos-list-row { animation: pos-row-enter 0.18s ease both; }
+
   .pos-empty {
     text-align: center;
     color: var(--text-dim);
@@ -272,6 +306,11 @@
     <div id="positionsHeader" class="pos-list-header" hidden>
       <p class="pos-card__title" style="margin:0;">持倉</p>
       <div class="pos-list-controls">
+        <label class="toggle" title="切換卡片/列表顯示">
+          <span class="toggle__label">列表</span>
+          <input type="checkbox" id="viewToggle" />
+          <span class="toggle__track"><span class="toggle__thumb"></span></span>
+        </label>
         <select id="sideFilterSelect" class="pos-sort-select">
           <option value="all">多空皆顯示</option>
           <option value="long">只顯示多</option>
@@ -296,6 +335,7 @@
     </div>
   </div>
 
+  <script src="./config.js"></script>
   <script>
     // 環境偵測跟 shared/app.js 一樣的寫法：擴充功能靠 manifest 的 host_permissions
     // 直接打 fapi.binance.com（不受 CORS 限制，也不需要額外處理自訂 header 的 preflight）；
@@ -305,10 +345,9 @@
     // 所以「返回」連結不能寫死，要靠 IS_EXTENSION 決定目標。
     document.getElementById("backLink").href = IS_EXTENSION ? "./popup.html" : "./index.html";
 
-    // 部署 worker/worker.js 之後把網址填在這裡（結尾不要加斜線）。
-    // 在部署完成前，PWA 環境查詢倉位這個功能無法使用（會直接跳錯誤訊息)。
-    const PWA_PROXY_BASE = "https://fapi.binance.com";
-    const API_BASE = IS_EXTENSION ? "https://fapi.binance.com" : PWA_PROXY_BASE;
+    // PWA_PROXY_BASE 定義在 config.js（跟 shared/app.js 共用同一個設定），
+    // 要切換成 worker/worker.js 轉發時只要改 config.js 那一個地方就好。
+    const API_BASE = IS_EXTENSION ? "https://fapi.binance.com" : window.PWA_PROXY_BASE;
     const ACCOUNT_URL = `${API_BASE}/fapi/v3/account`;
 
     const STORAGE_KEY_API = "usdmGainers.apiKey";
@@ -330,12 +369,14 @@
     const $positionsList = document.getElementById("positionsList");
     const $sideFilterSelect = document.getElementById("sideFilterSelect");
     const $sortSelect = document.getElementById("sortSelect");
+    const $viewToggle = document.getElementById("viewToggle");
     const $updatedAt = document.getElementById("updatedAt");
 
-    // 記住最近一次成功查詢到的持倉，切換排序/篩選方式時直接重新處理/渲染，不用重打 API。
+    // 記住最近一次成功查詢到的持倉，切換排序/篩選/顯示方式時直接重新處理/渲染，不用重打 API。
     let lastPositions = [];
     let sortMode = "none";
     let sideFilter = "all";
+    let viewMode = "card"; // "card" | "list"
 
     // API 金鑰卡片收合：查詢成功後自動收起來，減少畫面佔用；查詢失敗或按「清除金鑰」
     // 時自動展開，方便直接修正輸入。
@@ -540,6 +581,21 @@
         </div>`;
     }
 
+    // 列表顯示：只留 symbol / icon-btn / side / roi 一行，給只想快速掃一眼盈虧狀況的情境用。
+    function renderPositionListRow(v) {
+      const { p, isLong, roi } = v;
+      return `
+        <div class="pos-list-row">
+          <span class="pos-list-row__symbol">${p.symbol}</span>
+          <div class="pos-list-row__icons">
+            <a class="row__icon-btn" href="${buildBinanceUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 合約頁">${FUTURES_ICON_SVG}</a>
+            <a class="row__icon-btn" href="${buildSmartMoneyUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
+          </div>
+          <span class="pos-row__side ${isLong ? "is-long" : "is-short"}">${isLong ? "多" : "空"}</span>
+          <span class="pos-list-row__roi ${roi !== null && roi >= 0 ? "is-up" : "is-down"}">${roi !== null ? `${roi >= 0 ? "+" : ""}${roi.toFixed(2)}%` : "—"}</span>
+        </div>`;
+    }
+
     function renderPositions(positions) {
       lastPositions = positions;
       const open = positions.filter((p) => Number(p.positionAmt) !== 0);
@@ -565,8 +621,13 @@
         return;
       }
 
-      $positionsList.className = "is-grid";
-      $positionsList.innerHTML = sorted.map(renderPositionRow).join("");
+      if (viewMode === "list") {
+        $positionsList.className = "is-list";
+        $positionsList.innerHTML = sorted.map(renderPositionListRow).join("");
+      } else {
+        $positionsList.className = "is-grid";
+        $positionsList.innerHTML = sorted.map(renderPositionRow).join("");
+      }
     }
 
     function showError(message) {
@@ -621,6 +682,10 @@
     });
     $sideFilterSelect.addEventListener("change", (e) => {
       sideFilter = e.target.value;
+      renderPositions(lastPositions);
+    });
+    $viewToggle.addEventListener("change", (e) => {
+      viewMode = e.target.checked ? "list" : "card";
       renderPositions(lastPositions);
     });
 

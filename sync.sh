@@ -7,8 +7,10 @@ cd "$(dirname "$0")"
 cp shared/app.js pwa/app.js
 cp shared/style.css pwa/style.css
 cp shared/position.html pwa/position.html
+cp shared/config.js pwa/config.js
 cp shared/app.js extension/app.js
 cp shared/style.css extension/style.css
 cp shared/position.html extension/position.html
+cp shared/config.js extension/config.js
 
-echo "已同步 shared/app.js、shared/style.css、shared/position.html 到 pwa/ 與 extension/"
+echo "已同步 shared/app.js、shared/style.css、shared/position.html、shared/config.js 到 pwa/ 與 extension/"

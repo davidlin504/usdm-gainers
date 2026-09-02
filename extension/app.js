@@ -7,12 +7,9 @@
 // typeof 不會丟 ReferenceError，直接用 chrome?.xxx 才會（這正是我們之前修的那個 bug）。
 const IS_EXTENSION = typeof chrome !== "undefined" && !!chrome.runtime && !!chrome.runtime.id;
 
-// PWA 版本要換成你自己的 workers.dev 網址（結尾不要加斜線）；
-// 擴充功能版本不會用到這個常數，因為 IS_EXTENSION 會是 true。
-// const PWA_PROXY_BASE = "https://flat-sky-fe8c.davidlin504.workers.dev";
-const PWA_PROXY_BASE = "https://fapi.binance.com";
-
-const API_BASE = IS_EXTENSION ? "https://fapi.binance.com" : PWA_PROXY_BASE;
+// PWA_PROXY_BASE 現在集中定義在 config.js（HTML 裡要排在 app.js 之前載入），
+// 這樣同一個設定 app.js 跟 position.html 可以共用，不用兩邊各自維護一份常數。
+const API_BASE = IS_EXTENSION ? "https://fapi.binance.com" : window.PWA_PROXY_BASE;
 
 const API_URL = `${API_BASE}/fapi/v1/ticker/24hr`;
 const REFRESH_SECONDS = 300;

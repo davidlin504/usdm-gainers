@@ -8,6 +8,8 @@
 shared/            <- 唯一要編輯的地方
   app.js           資料抓取、渲染邏輯（環境自動偵測，PWA/擴充功能通用）
   style.css        UI 樣式
+  config.js        PWA_PROXY_BASE 設定（要不要透過 worker/ 轉發，只需要改這一個檔案）
+  position.html    USDⓈ-M 合約倉位查詢頁
   mock.html        mock data
 
 pwa/               <- PWA 專屬殼
