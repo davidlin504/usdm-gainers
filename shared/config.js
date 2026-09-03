@@ -7,3 +7,7 @@
 // 如果之後 Binance 收回 CORS 權限、PWA 端開始被擋，把下面這行換成你部署好的
 // Cloudflare Worker 網址（結尾不要加斜線）即可，不用改 app.js 或 position.html。
 window.PWA_PROXY_BASE = "https://fapi.binance.com";
+
+// app.js（漲幅榜倒數重新整理）跟 position.html（持倉頁倒數重新整理）共用同一個秒數，
+// 改這裡就能同時調整兩邊的自動重新整理頻率。
+window.REFRESH_SECONDS = 300;

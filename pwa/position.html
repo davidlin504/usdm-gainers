@@ -63,6 +63,18 @@
     justify-content: space-between;
     margin-bottom: 10px;
   }
+  .pos-card__head-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pos-card__head-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
   .pos-card__toggle {
     background: none;
     border: none;
@@ -73,6 +85,23 @@
     flex-shrink: 0;
   }
   .pos-card__toggle:hover { color: var(--text); }
+  .pos-card__toggle svg { width: 16px; height: 16px; display: block; }
+  /* API 金鑰區域的展開/收合按鈕比較小顆，點擊熟悉度也最高，特別放大字級加大點擊範圍。 */
+  #credToggleBtn { font-size: 22px; }
+  .pos-card__updated {
+    font-size: 13px;
+    color: var(--text-faint);
+  }
+  .pos-card__refresh-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pos-card__countdown {
+    font-size: 13px;
+    color: var(--text-faint);
+    font-family: var(--mono);
+  }
   .pos-card__summary {
     font-size: 12px;
     color: var(--text-dim);
@@ -128,6 +157,8 @@
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
+  /* 同上：display:grid 蓋掉了 [hidden] 預設的 display:none，收合帳戶總覽時要補這條才會真的消失。 */
+  .pos-summary[hidden] { display: none; }
   .pos-summary__item { display: flex; flex-direction: column; gap: 2px; }
   .pos-summary__label { font-size: 11px; color: var(--text-dim); }
   .pos-summary__value { font-family: var(--mono); font-size: 14px; color: var(--text); }
@@ -146,7 +177,7 @@
     margin-bottom: 8px;
   }
   .pos-row__symbol { font-weight: 700; font-size: 14px; }
-  .pos-row__head-right { display: flex; align-items: center; gap: 6px; }
+  .pos-row__head-links { display: flex; align-items: center; gap: 6px; }
   .pos-row__side {
     font-size: 11px;
     font-weight: 700;
@@ -236,15 +267,6 @@
     padding: 30px 0;
   }
 
-  .pos-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--text-faint);
-    padding-top: 4px;
-  }
-
   .error-box.pos-error { margin: 0 16px 12px; }
 </style>
 </head>
@@ -280,10 +302,20 @@
 
     <div id="summaryCard" class="pos-card" hidden>
       <div class="pos-card__head">
-        <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
-        <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
+        <div id="summaryHeadLeft" class="pos-card__head-left">
+          <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
+          <button id="visibilityToggleBtn" class="pos-card__toggle" type="button" title="隱藏帳戶資訊"></button>
+        </div>
+        <button id="summaryToggleBtn" class="pos-card__toggle" type="button" title="展開/收合">▾</button>
       </div>
-      <div class="pos-summary">
+      <div class="pos-card__head-right">
+        <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
+        <div class="pos-card__refresh-row">
+          <span id="countdown" class="pos-card__countdown" hidden></span>
+          <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
+        </div>
+      </div>
+      <div id="summaryGrid" class="pos-summary">
         <div class="pos-summary__item">
           <span class="pos-summary__label">錢包餘額</span>
           <span id="sumWalletBalance" class="pos-summary__value">—</span>
@@ -328,10 +360,6 @@
     <div id="errorBox" class="error-box pos-error" hidden>
       <p id="errorText">無法載入資料</p>
       <button id="retryBtn" class="retry-btn">重試</button>
-    </div>
-
-    <div class="pos-footer">
-      <span id="updatedAt">尚未查詢</span>
     </div>
   </div>
 
