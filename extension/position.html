@@ -63,6 +63,17 @@
     justify-content: space-between;
     margin-bottom: 10px;
   }
+  .pos-card__head-left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pos-card__head-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+  }
   .pos-card__toggle {
     background: none;
     border: none;
@@ -73,6 +84,11 @@
     flex-shrink: 0;
   }
   .pos-card__toggle:hover { color: var(--text); }
+  .pos-card__toggle svg { width: 16px; height: 16px; display: block; }
+  .pos-card__updated {
+    font-size: 11px;
+    color: var(--text-faint);
+  }
   .pos-card__summary {
     font-size: 12px;
     color: var(--text-dim);
@@ -146,7 +162,7 @@
     margin-bottom: 8px;
   }
   .pos-row__symbol { font-weight: 700; font-size: 14px; }
-  .pos-row__head-right { display: flex; align-items: center; gap: 6px; }
+  .pos-row__head-links { display: flex; align-items: center; gap: 6px; }
   .pos-row__side {
     font-size: 11px;
     font-weight: 700;
@@ -236,15 +252,6 @@
     padding: 30px 0;
   }
 
-  .pos-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--text-faint);
-    padding-top: 4px;
-  }
-
   .error-box.pos-error { margin: 0 16px 12px; }
 </style>
 </head>
@@ -280,8 +287,14 @@
 
     <div id="summaryCard" class="pos-card" hidden>
       <div class="pos-card__head">
-        <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
-        <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
+        <div class="pos-card__head-left">
+          <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
+          <button id="visibilityToggleBtn" class="pos-card__toggle" type="button" title="隱藏帳戶資訊"></button>
+        </div>
+        <div class="pos-card__head-right">
+          <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
+          <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
+        </div>
       </div>
       <div class="pos-summary">
         <div class="pos-summary__item">
@@ -329,10 +342,6 @@
       <p id="errorText">無法載入資料</p>
       <button id="retryBtn" class="retry-btn">重試</button>
     </div>
-
-    <div class="pos-footer">
-      <span id="updatedAt">尚未查詢</span>
-    </div>
   </div>
 
   <script src="./config.js"></script>
@@ -365,6 +374,7 @@
     const $errorBox = document.getElementById("errorBox");
     const $errorText = document.getElementById("errorText");
     const $summaryCard = document.getElementById("summaryCard");
+    const $visibilityToggleBtn = document.getElementById("visibilityToggleBtn");
     const $positionsHeader = document.getElementById("positionsHeader");
     const $positionsList = document.getElementById("positionsList");
     const $sideFilterSelect = document.getElementById("sideFilterSelect");
@@ -374,9 +384,20 @@
 
     // 記住最近一次成功查詢到的持倉，切換排序/篩選/顯示方式時直接重新處理/渲染，不用重打 API。
     let lastPositions = [];
+    let lastAccount = null;
     let sortMode = "none";
     let sideFilter = "all";
     let viewMode = "card"; // "card" | "list"
+    let accountHidden = false;
+
+    // 帳戶總覽的眼睛圖示：切換是否把餘額/盈虧數字換成星號，方便在別人看得到螢幕時遮一下。
+    function setAccountHidden(hidden) {
+      accountHidden = hidden;
+      updateSummaryValues();
+      $visibilityToggleBtn.innerHTML = accountHidden ? EYE_OFF_ICON_SVG : EYE_ICON_SVG;
+      $visibilityToggleBtn.title = accountHidden ? "顯示帳戶資訊" : "隱藏帳戶資訊";
+    }
+    $visibilityToggleBtn.addEventListener("click", () => setAccountHidden(!accountHidden));
 
     // API 金鑰卡片收合：查詢成功後自動收起來，減少畫面佔用；查詢失敗或按「清除金鑰」
     // 時自動展開，方便直接修正輸入。
@@ -405,6 +426,7 @@
       $apiKeyInput.value = "";
       $apiSecretInput.value = "";
       setCredentialsCollapsed(false);
+      lastAccount = null;
       $summaryCard.hidden = true;
       $positionsHeader.hidden = true;
       $positionsList.className = "";
@@ -449,15 +471,35 @@
       return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    function renderSummary(account) {
-      document.getElementById("sumWalletBalance").textContent = formatUSD(account.totalWalletBalance);
-      const pnl = Number(account.totalUnrealizedProfit);
+    const ACCOUNT_HIDDEN_MASK = "********";
+
+    // 隱藏帳戶資訊時直接把文字換成星號（不用 blur），這樣即使截圖也不會留下可辨識的殘影。
+    function updateSummaryValues() {
+      if (!lastAccount) return;
+      const $wallet = document.getElementById("sumWalletBalance");
       const $pnl = document.getElementById("sumUnrealizedProfit");
+      const $margin = document.getElementById("sumMarginBalance");
+      const $available = document.getElementById("sumAvailableBalance");
+      if (accountHidden) {
+        $wallet.textContent = ACCOUNT_HIDDEN_MASK;
+        $pnl.textContent = ACCOUNT_HIDDEN_MASK;
+        $pnl.classList.remove("is-up", "is-down");
+        $margin.textContent = ACCOUNT_HIDDEN_MASK;
+        $available.textContent = ACCOUNT_HIDDEN_MASK;
+        return;
+      }
+      $wallet.textContent = formatUSD(lastAccount.totalWalletBalance);
+      const pnl = Number(lastAccount.totalUnrealizedProfit);
       $pnl.textContent = formatUSD(pnl);
       $pnl.classList.toggle("is-up", pnl >= 0);
       $pnl.classList.toggle("is-down", pnl < 0);
-      document.getElementById("sumMarginBalance").textContent = formatUSD(account.totalMarginBalance);
-      document.getElementById("sumAvailableBalance").textContent = formatUSD(account.availableBalance);
+      $margin.textContent = formatUSD(lastAccount.totalMarginBalance);
+      $available.textContent = formatUSD(lastAccount.availableBalance);
+    }
+
+    function renderSummary(account) {
+      lastAccount = account;
+      updateSummaryValues();
       $summaryCard.hidden = false;
     }
 
@@ -471,6 +513,9 @@
     }
     const FUTURES_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="14 7 21 7 21 14"></polyline></svg>`;
     const RADAR_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5.5" stroke-opacity="0.6"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><path d="M12 12L19 6"></path></svg>`;
+    const EYE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    const EYE_OFF_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a18.6 18.6 0 015.06-5.94"></path><path d="M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a18.6 18.6 0 01-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 11-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+    setAccountHidden(false);
 
     function positionSideLabel(position) {
       const amt = Number(position.positionAmt);
@@ -538,7 +583,7 @@
         <div class="pos-row">
           <div class="pos-row__head">
             <span class="pos-row__symbol">${p.symbol}</span>
-            <div class="pos-row__head-right">
+            <div class="pos-row__head-links">
               <a class="row__icon-btn" href="${buildBinanceUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 合約頁">${FUTURES_ICON_SVG}</a>
               <a class="row__icon-btn" href="${buildSmartMoneyUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
               <span class="pos-row__side ${isLong ? "is-long" : "is-short"}">${isLong ? "多" : "空"}</span>
@@ -587,12 +632,12 @@
       return `
         <div class="pos-list-row">
           <span class="pos-list-row__symbol">${p.symbol}</span>
+          <span class="pos-row__side ${isLong ? "is-long" : "is-short"}">${isLong ? "多" : "空"}</span>
+          <span class="pos-list-row__roi ${roi !== null && roi >= 0 ? "is-up" : "is-down"}">${roi !== null ? `${roi >= 0 ? "+" : ""}${roi.toFixed(2)}%` : "—"}</span>
           <div class="pos-list-row__icons">
             <a class="row__icon-btn" href="${buildBinanceUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 合約頁">${FUTURES_ICON_SVG}</a>
             <a class="row__icon-btn" href="${buildSmartMoneyUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
           </div>
-          <span class="pos-row__side ${isLong ? "is-long" : "is-short"}">${isLong ? "多" : "空"}</span>
-          <span class="pos-list-row__roi ${roi !== null && roi >= 0 ? "is-up" : "is-down"}">${roi !== null ? `${roi >= 0 ? "+" : ""}${roi.toFixed(2)}%` : "—"}</span>
         </div>`;
     }
 
