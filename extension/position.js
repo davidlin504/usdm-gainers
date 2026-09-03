@@ -26,6 +26,11 @@ const $retryBtn = document.getElementById("retryBtn");
 const $errorBox = document.getElementById("errorBox");
 const $errorText = document.getElementById("errorText");
 const $summaryCard = document.getElementById("summaryCard");
+const $summaryGrid = document.getElementById("summaryGrid");
+const $summaryHeadLeft = document.getElementById("summaryHeadLeft");
+const $summaryToggleBtn = document.getElementById("summaryToggleBtn");
+const $visibilityToggleBtn = document.getElementById("visibilityToggleBtn");
+const $countdown = document.getElementById("countdown");
 const $positionsHeader = document.getElementById("positionsHeader");
 const $positionsList = document.getElementById("positionsList");
 const $sideFilterSelect = document.getElementById("sideFilterSelect");
@@ -35,9 +40,55 @@ const $updatedAt = document.getElementById("updatedAt");
 
 // 記住最近一次成功查詢到的持倉，切換排序/篩選/顯示方式時直接重新處理/渲染，不用重打 API。
 let lastPositions = [];
+let lastAccount = null;
 let sortMode = "none";
 let sideFilter = "all";
 let viewMode = "card"; // "card" | "list"
+let accountHidden = false;
+
+// 倒數自動重新整理：秒數跟 shared/app.js 共用同一個 window.REFRESH_SECONDS（見 config.js），
+// 只在成功打過一次 API（也就是金鑰有效）之後才開始跑，避免金鑰還沒填就一直重試。
+let countdownTimer = null;
+let secondsLeft = window.REFRESH_SECONDS;
+
+function updateCountdownText() {
+  $countdown.textContent = `${secondsLeft}s`;
+}
+function resetCountdown() {
+  secondsLeft = window.REFRESH_SECONDS;
+  updateCountdownText();
+}
+function startCountdown() {
+  $countdown.hidden = false;
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    secondsLeft -= 1;
+    if (secondsLeft <= 0) {
+      loadAccount(); // 成功/失敗都會在 finally 裡呼叫 resetCountdown()，接著這個 interval 重新算下一輪
+    } else {
+      updateCountdownText();
+    }
+  }, 1000);
+}
+
+// 帳戶總覽的眼睛圖示：切換是否把餘額/盈虧數字換成星號，方便在別人看得到螢幕時遮一下。
+function setAccountHidden(hidden) {
+  accountHidden = hidden;
+  updateSummaryValues();
+  $visibilityToggleBtn.innerHTML = accountHidden ? EYE_OFF_ICON_SVG : EYE_ICON_SVG;
+  $visibilityToggleBtn.title = accountHidden ? "顯示帳戶資訊" : "隱藏帳戶資訊";
+}
+$visibilityToggleBtn.addEventListener("click", () => setAccountHidden(!accountHidden));
+
+// 帳戶總覽卡片收合：跟 API 金鑰區域用同一套「頭部按鈕切換、本體隱藏」的收合行為——
+// .pos-card__head（標題、眼睛圖示、收合按鈕）永遠顯示，只收合下面的數字本體。
+function setSummaryCollapsed(collapsed) {
+  $summaryGrid.hidden = collapsed;
+  $summaryToggleBtn.textContent = collapsed ? "▸" : "▾";
+}
+$summaryToggleBtn.addEventListener("click", () => {
+  setSummaryCollapsed($summaryGrid.hidden === false);
+});
 
 // API 金鑰卡片收合：查詢成功後自動收起來，減少畫面佔用；查詢失敗或按「清除金鑰」
 // 時自動展開，方便直接修正輸入。
@@ -66,6 +117,7 @@ function clearCredentials() {
   $apiKeyInput.value = "";
   $apiSecretInput.value = "";
   setCredentialsCollapsed(false);
+  lastAccount = null;
   $summaryCard.hidden = true;
   $positionsHeader.hidden = true;
   $positionsList.className = "";
@@ -73,6 +125,8 @@ function clearCredentials() {
   document.body.classList.remove("has-positions");
   hideError();
   $updatedAt.textContent = "尚未查詢";
+  clearInterval(countdownTimer);
+  $countdown.hidden = true;
 }
 
 // Binance 簽名規則：query string 用 HMAC-SHA256、secret key 當金鑰簽名，
@@ -110,15 +164,35 @@ function formatUSD(n) {
   return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function renderSummary(account) {
-  document.getElementById("sumWalletBalance").textContent = formatUSD(account.totalWalletBalance);
-  const pnl = Number(account.totalUnrealizedProfit);
+const ACCOUNT_HIDDEN_MASK = "********";
+
+// 隱藏帳戶資訊時直接把文字換成星號（不用 blur），這樣即使截圖也不會留下可辨識的殘影。
+function updateSummaryValues() {
+  if (!lastAccount) return;
+  const $wallet = document.getElementById("sumWalletBalance");
   const $pnl = document.getElementById("sumUnrealizedProfit");
+  const $margin = document.getElementById("sumMarginBalance");
+  const $available = document.getElementById("sumAvailableBalance");
+  if (accountHidden) {
+    $wallet.textContent = ACCOUNT_HIDDEN_MASK;
+    $pnl.textContent = ACCOUNT_HIDDEN_MASK;
+    $pnl.classList.remove("is-up", "is-down");
+    $margin.textContent = ACCOUNT_HIDDEN_MASK;
+    $available.textContent = ACCOUNT_HIDDEN_MASK;
+    return;
+  }
+  $wallet.textContent = formatUSD(lastAccount.totalWalletBalance);
+  const pnl = Number(lastAccount.totalUnrealizedProfit);
   $pnl.textContent = formatUSD(pnl);
   $pnl.classList.toggle("is-up", pnl >= 0);
   $pnl.classList.toggle("is-down", pnl < 0);
-  document.getElementById("sumMarginBalance").textContent = formatUSD(account.totalMarginBalance);
-  document.getElementById("sumAvailableBalance").textContent = formatUSD(account.availableBalance);
+  $margin.textContent = formatUSD(lastAccount.totalMarginBalance);
+  $available.textContent = formatUSD(lastAccount.availableBalance);
+}
+
+function renderSummary(account) {
+  lastAccount = account;
+  updateSummaryValues();
   $summaryCard.hidden = false;
 }
 
@@ -132,6 +206,9 @@ function buildSmartMoneyUrl(symbol) {
 }
 const FUTURES_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"></polyline><polyline points="14 7 21 7 21 14"></polyline></svg>`;
 const RADAR_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5.5" stroke-opacity="0.6"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><path d="M12 12L19 6"></path></svg>`;
+const EYE_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+const EYE_OFF_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a18.6 18.6 0 015.06-5.94"></path><path d="M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a18.6 18.6 0 01-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 11-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+setAccountHidden(false);
 
 function positionSideLabel(position) {
   const amt = Number(position.positionAmt);
@@ -199,7 +276,7 @@ function renderPositionRow(v) {
     <div class="pos-row">
       <div class="pos-row__head">
         <span class="pos-row__symbol">${p.symbol}</span>
-        <div class="pos-row__head-right">
+        <div class="pos-row__head-links">
           <a class="row__icon-btn" href="${buildBinanceUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 合約頁">${FUTURES_ICON_SVG}</a>
           <a class="row__icon-btn" href="${buildSmartMoneyUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
           <span class="pos-row__side ${isLong ? "is-long" : "is-short"}">${isLong ? "多" : "空"}</span>
@@ -248,12 +325,12 @@ function renderPositionListRow(v) {
   return `
     <div class="pos-list-row">
       <span class="pos-list-row__symbol">${p.symbol}</span>
+      <span class="pos-row__side ${isLong ? "is-long" : "is-short"}">${isLong ? "多" : "空"}</span>
+      <span class="pos-list-row__roi ${roi !== null && roi >= 0 ? "is-up" : "is-down"}">${roi !== null ? `${roi >= 0 ? "+" : ""}${roi.toFixed(2)}%` : "—"}</span>
       <div class="pos-list-row__icons">
         <a class="row__icon-btn" href="${buildBinanceUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 合約頁">${FUTURES_ICON_SVG}</a>
         <a class="row__icon-btn" href="${buildSmartMoneyUrl(p.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${p.symbol} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
       </div>
-      <span class="pos-row__side ${isLong ? "is-long" : "is-short"}">${isLong ? "多" : "空"}</span>
-      <span class="pos-list-row__roi ${roi !== null && roi >= 0 ? "is-up" : "is-down"}">${roi !== null ? `${roi >= 0 ? "+" : ""}${roi.toFixed(2)}%` : "—"}</span>
     </div>`;
 }
 
@@ -327,6 +404,8 @@ async function loadAccount() {
     setCredentialsCollapsed(false);
   } finally {
     setLoading(false);
+    resetCountdown();
+    startCountdown();
   }
 }
 
