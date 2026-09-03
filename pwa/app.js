@@ -12,7 +12,9 @@ const IS_EXTENSION = typeof chrome !== "undefined" && !!chrome.runtime && !!chro
 const API_BASE = IS_EXTENSION ? "https://fapi.binance.com" : window.PWA_PROXY_BASE;
 
 const API_URL = `${API_BASE}/fapi/v1/ticker/24hr`;
-const REFRESH_SECONDS = 300;
+// REFRESH_SECONDS 也集中定義在 config.js，跟 PWA_PROXY_BASE 一樣，讓 position.html
+// 的倒數自動重新整理可以套用同一個秒數，不用兩邊各自維護一份常數。
+const REFRESH_SECONDS = window.REFRESH_SECONDS;
 const TOP_N = 5;
 
 // 跑馬燈模式的參數：捲動速度固定用「像素/秒」表示，而不是固定秒數。

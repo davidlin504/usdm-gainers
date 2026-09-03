@@ -73,6 +73,7 @@
     flex-direction: column;
     align-items: flex-end;
     gap: 4px;
+    margin-bottom: 10px;
   }
   .pos-card__toggle {
     background: none;
@@ -85,9 +86,21 @@
   }
   .pos-card__toggle:hover { color: var(--text); }
   .pos-card__toggle svg { width: 16px; height: 16px; display: block; }
+  /* API 金鑰區域的展開/收合按鈕比較小顆，點擊熟悉度也最高，特別放大字級加大點擊範圍。 */
+  #credToggleBtn { font-size: 22px; }
   .pos-card__updated {
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text-faint);
+  }
+  .pos-card__refresh-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pos-card__countdown {
+    font-size: 13px;
+    color: var(--text-faint);
+    font-family: var(--mono);
   }
   .pos-card__summary {
     font-size: 12px;
@@ -144,6 +157,8 @@
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
+  /* 同上：display:grid 蓋掉了 [hidden] 預設的 display:none，收合帳戶總覽時要補這條才會真的消失。 */
+  .pos-summary[hidden] { display: none; }
   .pos-summary__item { display: flex; flex-direction: column; gap: 2px; }
   .pos-summary__label { font-size: 11px; color: var(--text-dim); }
   .pos-summary__value { font-family: var(--mono); font-size: 14px; color: var(--text); }
@@ -287,16 +302,20 @@
 
     <div id="summaryCard" class="pos-card" hidden>
       <div class="pos-card__head">
-        <div class="pos-card__head-left">
+        <div id="summaryHeadLeft" class="pos-card__head-left">
           <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
           <button id="visibilityToggleBtn" class="pos-card__toggle" type="button" title="隱藏帳戶資訊"></button>
         </div>
-        <div class="pos-card__head-right">
-          <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
+        <button id="summaryToggleBtn" class="pos-card__toggle" type="button" title="展開/收合">▾</button>
+      </div>
+      <div class="pos-card__head-right">
+        <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
+        <div class="pos-card__refresh-row">
+          <span id="countdown" class="pos-card__countdown" hidden></span>
           <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
         </div>
       </div>
-      <div class="pos-summary">
+      <div id="summaryGrid" class="pos-summary">
         <div class="pos-summary__item">
           <span class="pos-summary__label">錢包餘額</span>
           <span id="sumWalletBalance" class="pos-summary__value">—</span>
@@ -374,7 +393,11 @@
     const $errorBox = document.getElementById("errorBox");
     const $errorText = document.getElementById("errorText");
     const $summaryCard = document.getElementById("summaryCard");
+    const $summaryGrid = document.getElementById("summaryGrid");
+    const $summaryHeadLeft = document.getElementById("summaryHeadLeft");
+    const $summaryToggleBtn = document.getElementById("summaryToggleBtn");
     const $visibilityToggleBtn = document.getElementById("visibilityToggleBtn");
+    const $countdown = document.getElementById("countdown");
     const $positionsHeader = document.getElementById("positionsHeader");
     const $positionsList = document.getElementById("positionsList");
     const $sideFilterSelect = document.getElementById("sideFilterSelect");
@@ -390,6 +413,31 @@
     let viewMode = "card"; // "card" | "list"
     let accountHidden = false;
 
+    // 倒數自動重新整理：秒數跟 shared/app.js 共用同一個 window.REFRESH_SECONDS（見 config.js），
+    // 只在成功打過一次 API（也就是金鑰有效）之後才開始跑，避免金鑰還沒填就一直重試。
+    let countdownTimer = null;
+    let secondsLeft = window.REFRESH_SECONDS;
+
+    function updateCountdownText() {
+      $countdown.textContent = `${secondsLeft}s`;
+    }
+    function resetCountdown() {
+      secondsLeft = window.REFRESH_SECONDS;
+      updateCountdownText();
+    }
+    function startCountdown() {
+      $countdown.hidden = false;
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(() => {
+        secondsLeft -= 1;
+        if (secondsLeft <= 0) {
+          loadAccount(); // 成功/失敗都會在 finally 裡呼叫 resetCountdown()，接著這個 interval 重新算下一輪
+        } else {
+          updateCountdownText();
+        }
+      }, 1000);
+    }
+
     // 帳戶總覽的眼睛圖示：切換是否把餘額/盈虧數字換成星號，方便在別人看得到螢幕時遮一下。
     function setAccountHidden(hidden) {
       accountHidden = hidden;
@@ -398,6 +446,16 @@
       $visibilityToggleBtn.title = accountHidden ? "顯示帳戶資訊" : "隱藏帳戶資訊";
     }
     $visibilityToggleBtn.addEventListener("click", () => setAccountHidden(!accountHidden));
+
+    // 帳戶總覽卡片收合：跟 API 金鑰區域用同一套「頭部按鈕切換、本體隱藏」的收合行為——
+    // .pos-card__head（標題、眼睛圖示、收合按鈕）永遠顯示，只收合下面的數字本體。
+    function setSummaryCollapsed(collapsed) {
+      $summaryGrid.hidden = collapsed;
+      $summaryToggleBtn.textContent = collapsed ? "▸" : "▾";
+    }
+    $summaryToggleBtn.addEventListener("click", () => {
+      setSummaryCollapsed($summaryGrid.hidden === false);
+    });
 
     // API 金鑰卡片收合：查詢成功後自動收起來，減少畫面佔用；查詢失敗或按「清除金鑰」
     // 時自動展開，方便直接修正輸入。
@@ -434,6 +492,8 @@
       document.body.classList.remove("has-positions");
       hideError();
       $updatedAt.textContent = "尚未查詢";
+      clearInterval(countdownTimer);
+      $countdown.hidden = true;
     }
 
     // Binance 簽名規則：query string 用 HMAC-SHA256、secret key 當金鑰簽名，
@@ -711,6 +771,8 @@
         setCredentialsCollapsed(false);
       } finally {
         setLoading(false);
+        resetCountdown();
+        startCountdown();
       }
     }
 
