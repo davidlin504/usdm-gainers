@@ -466,21 +466,19 @@ html, body {
   margin-top: 4px;
 }
 
-/* 跟 .row__mcap-collapse 同一套 grid-template-rows 0fr↔1fr 手法，
-   但這裡是每個 row 自己的 .row__smart-money-toggle 獨立控制開闔，
-   不是像 mcap 那樣全部 row 共用一個全域開關。 */
+/* 本來跟 .row__mcap-collapse 同一套 grid-template-rows 0fr↔1fr 手法，
+   但 Safari/WebKit 在計算這招的 intrinsic size 時，遇到內層是
+   flex-wrap 的內容（.row__smart-money 底下 item 又是 column 排列）常常
+   算錯高度，導致 iOS 上展開後只看得到第一行就被裁掉。改成用 JS 量出
+   實際 scrollHeight 再動畫 max-height（見 app.js 的 toggle 事件），
+   這裡的 max-height: 0 只是收闔時的初始值。 */
 .row__smart-money-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
+  max-height: 0;
   overflow: hidden;
-  transition: grid-template-rows 0.25s ease;
-}
-.row__smart-money-collapse.is-open {
-  grid-template-rows: 1fr;
+  transition: max-height 0.25s ease;
 }
 .row__smart-money-collapse-inner {
   min-height: 0;
-  overflow: hidden;
 }
 
 /* 收闔動畫用 grid-template-rows: 0fr ↔ 1fr（搭配子層 overflow:hidden）而不是

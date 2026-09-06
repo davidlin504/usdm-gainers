@@ -41,9 +41,9 @@ const $updatedAt = document.getElementById("updatedAt");
 // 記住最近一次成功查詢到的持倉，切換排序/篩選/顯示方式時直接重新處理/渲染，不用重打 API。
 let lastPositions = [];
 let lastAccount = null;
-let sortMode = "none";
+let sortMode = "roi-desc";
 let sideFilter = "all";
-let viewMode = "card"; // "card" | "list"
+let viewMode = "list"; // "card" | "list"
 let accountHidden = false;
 
 // 倒數自動重新整理：秒數跟 shared/app.js 共用同一個 window.REFRESH_SECONDS（見 config.js），

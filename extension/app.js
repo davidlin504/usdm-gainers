@@ -742,10 +742,14 @@ function renderRows(items) {
 
     const smToggleBtn = row.querySelector(".row__smart-money-toggle");
     const smCollapse = row.querySelector(".row__smart-money-collapse");
-    if (smToggleBtn && smCollapse) {
+    const smCollapseInner = row.querySelector(".row__smart-money-collapse-inner");
+    if (smToggleBtn && smCollapse && smCollapseInner) {
       smToggleBtn.addEventListener("click", () => {
         const nowOpen = !smCollapse.classList.contains("is-open");
         smCollapse.classList.toggle("is-open", nowOpen);
+        // 用量出來的 scrollHeight 動畫 max-height，不用 CSS grid 0fr/1fr 那招，
+        // 因為 Safari 對 flex-wrap 內容的 intrinsic size 算不準（見 style.css 註解）。
+        smCollapse.style.maxHeight = nowOpen ? `${smCollapseInner.scrollHeight}px` : "0px";
         smToggleBtn.setAttribute("aria-expanded", String(nowOpen));
         smToggleBtn.title = nowOpen ? "收合聰明錢明細" : "展開聰明錢明細";
       });

@@ -352,7 +352,7 @@
       <div class="pos-list-controls">
         <label class="toggle" title="切換卡片/列表顯示">
           <span class="toggle__label">列表</span>
-          <input type="checkbox" id="viewToggle" />
+          <input type="checkbox" id="viewToggle" checked />
           <span class="toggle__track"><span class="toggle__thumb"></span></span>
         </label>
         <select id="sideFilterSelect" class="pos-sort-select">
@@ -361,8 +361,8 @@
           <option value="short">只顯示空</option>
         </select>
         <select id="sortSelect" class="pos-sort-select">
-          <option value="roi-asc">預設排序</option>
-          <option value="roi-desc">ROI 遞減</option>
+          <option value="none">預設排序</option>
+          <option value="roi-desc" selected>ROI 遞減</option>
           <option value="roi-asc">ROI 遞增</option>
         </select>
       </div>
