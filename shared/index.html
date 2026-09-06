@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>USDⓈ-M 漲幅榜（假資料預覽）</title>
 <meta name="theme-color" content="#0b0e14" />
+<link rel="icon" type="image/svg+xml" href="./logo.svg" />
 
 <link rel="stylesheet" href="./style.css" />
 <style>
@@ -13,7 +14,7 @@
     background: #3a2a00;
     color: #ffcf5c;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 18px;
     text-align: center;
     padding: 6px 10px;
   }
@@ -25,6 +26,7 @@
   <div class="app">
     <header class="app__header">
       <div class="brand">
+        <img class="brand__logo" src="./logo.svg" alt="" />
         <span class="brand__dot" id="liveDot"></span>
         <a class="rankings__url" href="https://www.binance.com/zh-TC/markets/trading_data/rankings" target="_blank">
           <h1 class="brand__title">USD Features 漲幅榜</h1>
@@ -40,6 +42,9 @@
         <input type="checkbox" id="mcapToggle" />
         <span class="toggle__track"><span class="toggle__thumb"></span></span>
       </label>
+      <a class="row__icon-btn" href="./position.html" title="查看合約倉位">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 7V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2"></path><line x1="12" y1="12" x2="12" y2="12.01"></line></svg>
+      </a>
     </header>
 
     <div class="subbar">

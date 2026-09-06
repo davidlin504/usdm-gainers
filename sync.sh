@@ -9,10 +9,12 @@ cp shared/style.css pwa/style.css
 cp shared/position.html pwa/position.html
 cp shared/position.js pwa/position.js
 cp shared/config.js pwa/config.js
+cp shared/logo.svg pwa/logo.svg
 cp shared/app.js extension/app.js
 cp shared/style.css extension/style.css
 cp shared/position.html extension/position.html
 cp shared/position.js extension/position.js
 cp shared/config.js extension/config.js
+cp shared/logo.svg extension/logo.svg
 
-echo "已同步 shared/app.js、shared/style.css、shared/position.html、shared/position.js、shared/config.js 到 pwa/ 與 extension/"
+echo "已同步 shared/app.js、shared/style.css、shared/position.html、shared/position.js、shared/config.js、shared/logo.svg 到 pwa/ 與 extension/"
