@@ -32,19 +32,33 @@
           <h1 class="brand__title">USD Features 漲幅榜</h1>
         </a>
       </div>
-      <label class="toggle" title="切換跑馬燈模式">
-        <span class="toggle__label">Lite</span>
-        <input type="checkbox" id="tickerToggle" />
-        <span class="toggle__track"><span class="toggle__thumb"></span></span>
-      </label>
-      <label class="toggle" title="顯示/隱藏市值資訊">
-        <span class="toggle__label">mcap</span>
-        <input type="checkbox" id="mcapToggle" />
-        <span class="toggle__track"><span class="toggle__thumb"></span></span>
-      </label>
-      <a class="row__icon-btn" href="./position.html" title="查看合約倉位">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 7V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2"></path><line x1="12" y1="12" x2="12" y2="12.01"></line></svg>
-      </a>
+      <div class="header-menu">
+        <button id="menuToggleBtn" class="row__icon-btn header-menu__toggle" type="button" title="選單" aria-expanded="false" aria-controls="headerMenuPanel">
+          <svg class="hamburger-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line class="hamburger-icon__l1" x1="4" y1="7" x2="20" y2="7"></line>
+            <line class="hamburger-icon__l2" x1="4" y1="12" x2="20" y2="12"></line>
+            <line class="hamburger-icon__l3" x1="4" y1="17" x2="20" y2="17"></line>
+          </svg>
+        </button>
+        <div id="headerMenuPanel" class="header-menu__panel" hidden>
+          <label class="toggle" title="切換跑馬燈模式">
+            <span class="toggle__label">Lite</span>
+            <input type="checkbox" id="tickerToggle" />
+            <span class="toggle__track"><span class="toggle__thumb"></span></span>
+          </label>
+          <label class="toggle" title="顯示/隱藏市值資訊">
+            <span class="toggle__label">mcap</span>
+            <input type="checkbox" id="mcapToggle" />
+            <span class="toggle__track"><span class="toggle__thumb"></span></span>
+          </label>
+          <a class="header-menu__item" href="./position.html" title="查看合約倉位">
+            <span class="toggle__label">合約倉位</span>
+            <span class="row__icon-btn" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="M16 7V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2"></path><line x1="12" y1="12" x2="12" y2="12.01"></line></svg>
+            </span>
+          </a>
+        </div>
+      </div>
     </header>
 
     <div class="subbar">

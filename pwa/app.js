@@ -411,6 +411,9 @@ const FUTURES_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 // 聰明錢訊號頁 icon：雷達（同心圓 + 中心點 + 掃描線）。
 const RADAR_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5.5" stroke-opacity="0.6"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"></circle><path d="M12 12L19 6"></path></svg>`;
 
+// 開闔聰明錢明細用的 chevron icon：按 aria-expanded 用 CSS 轉向，不用切換兩份 SVG。
+const CHEVRON_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
 function splitSymbol(symbol) {
   const quotes = ["USDT", "USDC", "BUSD"];
   for (const q of quotes) {
@@ -466,20 +469,34 @@ function renderLongShortRatio(ratio) {
 
 // 聰明錢 long/short 明細：把 API 回來的四個原始數字（不是算出來的比率）
 // 分別呈現，跟市值區塊一樣的 item/label 排版。
+// 外面包一層 row__smart-money-collapse，讓每個 row 自己的 toggle 按鈕
+// （見 renderRows 裡的 .row__smart-money-toggle）可以獨立開闔這塊，
+// 跟 mcap 那個全域共用開關互不影響。預設不加 is-open，一開始是闔上的。
 function renderSmartMoneyDetails(stats) {
-  if (!stats || typeof stats.longPositions !== "number") {
-    return `<div class="row__smart-money row__smart-money--na">聰明錢資料暫無</div>`;
-  }
-  const longPositions = formatCompactUSD(stats.longPositions);
-  const shortPositions = formatCompactUSD(stats.shortPositions);
-  const longTraders = typeof stats.longTraders === "number" ? stats.longTraders.toLocaleString("en-US") : "—";
-  const shortTraders = typeof stats.shortTraders === "number" ? stats.shortTraders.toLocaleString("en-US") : "—";
+  const innerHtml =
+    !stats || typeof stats.longPositions !== "number"
+      ? `<div class="row__smart-money row__smart-money--na">聰明錢資料暫無</div>`
+      : (() => {
+          const longPositions = formatCompactUSD(stats.longPositions);
+          const shortPositions = formatCompactUSD(stats.shortPositions);
+          const longTraders = typeof stats.longTraders === "number" ? stats.longTraders.toLocaleString("en-US") : "—";
+          const shortTraders = typeof stats.shortTraders === "number" ? stats.shortTraders.toLocaleString("en-US") : "—";
+          return `
+            <div class="row__smart-money">
+              <div class="row__smart-money-group is-long">
+                <div class="row__smart-money-item is-long"><span class="row__smart-money-label">Long 倉位</span>${longPositions}</div>
+                <div class="row__smart-money-item is-long"><span class="row__smart-money-label">Long 人數</span>${longTraders}</div>
+              </div>
+              <div class="row__smart-money-group is-short">
+                <div class="row__smart-money-item is-short"><span class="row__smart-money-label">Short 倉位</span>${shortPositions}</div>
+                <div class="row__smart-money-item is-short"><span class="row__smart-money-label">Short 人數</span>${shortTraders}</div>
+              </div>
+            </div>`;
+        })();
+
   return `
-    <div class="row__smart-money">
-      <div class="row__smart-money-item is-long"><span class="row__smart-money-label">Long 倉位</span>${longPositions}</div>
-      <div class="row__smart-money-item is-long"><span class="row__smart-money-label">Long 人數</span>${longTraders}</div>
-      <div class="row__smart-money-item is-short"><span class="row__smart-money-label">Short 倉位</span>${shortPositions}</div>
-      <div class="row__smart-money-item is-short"><span class="row__smart-money-label">Short 人數</span>${shortTraders}</div>
+    <div class="row__smart-money-collapse">
+      <div class="row__smart-money-collapse-inner">${innerHtml}</div>
     </div>`;
 }
 
@@ -707,6 +724,7 @@ function renderRows(items) {
           ${lsRatioHtml}
           <a class="row__icon-btn" href="${buildBinanceUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 合約頁">${FUTURES_ICON_SVG}</a>
           <a class="row__icon-btn" href="${buildSmartMoneyUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
+          <button class="row__icon-btn row__smart-money-toggle" type="button" aria-expanded="false" title="展開聰明錢明細">${CHEVRON_ICON_SVG}</button>
         </div>
         <div class="row__bars">${barsHtml}${mcapBarHtml}</div>
         ${mcapHtml}
@@ -720,6 +738,17 @@ function renderRows(items) {
       </div>
     `;
 
+    const smToggleBtn = row.querySelector(".row__smart-money-toggle");
+    const smCollapse = row.querySelector(".row__smart-money-collapse");
+    if (smToggleBtn && smCollapse) {
+      smToggleBtn.addEventListener("click", () => {
+        const nowOpen = !smCollapse.classList.contains("is-open");
+        smCollapse.classList.toggle("is-open", nowOpen);
+        smToggleBtn.setAttribute("aria-expanded", String(nowOpen));
+        smToggleBtn.title = nowOpen ? "收合聰明錢明細" : "展開聰明錢明細";
+      });
+    }
+
     $content.appendChild(row);
   });
 }
@@ -731,6 +760,35 @@ function setMcapExpanded(expanded) {
   mcapExpanded = expanded;
   document.querySelectorAll(".row__mcap-collapse").forEach((el) => {
     el.classList.toggle("is-open", expanded);
+  });
+}
+
+// header 選單：漢堡按鈕開闔一個面板，面板本身固定寫在 index.html/popup.html 裡
+// （不是 JS 動態生成的），這裡只負責綁定開闔行為——點漢堡切換、點面板以外的地方
+// 或按 Escape 收起來。面板裡的 Lite/mcap 開關維持原本各自的 change 事件，跟這裡
+// 的開闔邏輯互不影響。
+function initHeaderMenu() {
+  const $menuToggleBtn = document.getElementById("menuToggleBtn");
+  const $menuPanel = document.getElementById("headerMenuPanel");
+  if (!$menuToggleBtn || !$menuPanel) return;
+
+  const setMenuOpen = (open) => {
+    $menuPanel.hidden = !open;
+    $menuToggleBtn.setAttribute("aria-expanded", String(open));
+  };
+
+  $menuToggleBtn.addEventListener("click", () => {
+    setMenuOpen($menuPanel.hidden);
+  });
+
+  document.addEventListener("click", (e) => {
+    if ($menuPanel.hidden) return;
+    if ($menuToggleBtn.contains(e.target) || $menuPanel.contains(e.target)) return;
+    setMenuOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$menuPanel.hidden) setMenuOpen(false);
   });
 }
 
@@ -856,6 +914,7 @@ initTicker();
 initTickerToggle();
 initMcapToggle();
 initSmartMoneyRangeToggle();
+initHeaderMenu();
 
 buildSkeleton();
 loadData();

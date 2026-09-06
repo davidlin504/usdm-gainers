@@ -172,6 +172,9 @@ html, body {
   flex: none;
   width: 28px;
   height: 28px;
+  padding: 0;
+  margin: 0;
+  font: inherit;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--panel-alt);
@@ -184,6 +187,14 @@ html, body {
 .row__icon-btn svg { width: 22px; height: 22px; display: block; }
 .row__icon-btn:hover { opacity: 1; background: var(--panel); color: var(--accent); }
 .row__icon-btn:active { transform: scale(0.9); }
+
+/* 闔上時 chevron 朝下（提示可以展開），展開後轉向朝上（提示可以收合）。 */
+.row__smart-money-toggle svg {
+  transition: transform 0.2s ease;
+}
+.row__smart-money-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
 
 .row__change-days {
   display: flex;
@@ -415,6 +426,16 @@ html, body {
   margin-top: 4px;
 }
 
+/* is-long / is-short 各自包成一組再交給外層 wrap，這樣寬度不夠時是整組換行
+   （long 一行、short 一行），不會讓外層把兩組的 4 個 item 拆散、混在同一行裡。 */
+.row__smart-money-group {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
 .row__smart-money-item {
   font-family: var(--mono);
   display: flex;
@@ -439,6 +460,23 @@ html, body {
   font-size: 18px;
   color: var(--text-faint);
   margin-top: 4px;
+}
+
+/* 跟 .row__mcap-collapse 同一套 grid-template-rows 0fr↔1fr 手法，
+   但這裡是每個 row 自己的 .row__smart-money-toggle 獨立控制開闔，
+   不是像 mcap 那樣全部 row 共用一個全域開關。 */
+.row__smart-money-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows 0.25s ease;
+}
+.row__smart-money-collapse.is-open {
+  grid-template-rows: 1fr;
+}
+.row__smart-money-collapse-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* 收闔動畫用 grid-template-rows: 0fr ↔ 1fr（搭配子層 overflow:hidden）而不是
@@ -659,4 +697,70 @@ body.is-ticker-mode.has-error .ticker {
 
 .toggle__label {
   padding-right: 3px;
+  font-family: var(--mono);
+}
+
+/* ===== header 選單：漢堡按鈕開闔一個面板，收著 Lite/mcap 開關跟合約倉位連結 ===== */
+.header-menu {
+  position: relative;
+}
+
+.header-menu__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 180px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.55);
+}
+.header-menu__panel[hidden] { display: none; }
+
+/* 面板裡的 .toggle 從 header 那種「文字貼著開關」的緊湊排法，
+   改成整行寬度、文字跟開關左右分靠，跟下面的合約倉位連結對齊。 */
+.header-menu__panel .toggle {
+  width: 100%;
+  margin-right: 0;
+  justify-content: space-between;
+}
+
+.header-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+.header-menu__item:hover .toggle__label { color: var(--text); }
+.header-menu__item:hover .row__icon-btn { opacity: 1; background: var(--panel); color: var(--accent); }
+
+/* 漢堡三條線靠 CSS transform 各自轉向、疊成一個 X，不用切換兩份 SVG。 */
+.hamburger-icon__l1,
+.hamburger-icon__l2,
+.hamburger-icon__l3 {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  /* transform-origin: center 預設是相對 SVG viewBox 解析還是相對每個
+     <line> 自己的 bounding box，瀏覽器預設不一致（view-box vs fill-box）。
+     沒有明確指定 transform-box 的話，rotate 的圓心可能落在 viewBox 正中央
+     （12,12）而不是每條線自己的中點，連同下面補的 translateY 疊加起來，
+     線就會斜偏一邊，變成不對稱、左半邊看起來被裁掉的 X。這裡明確指定
+     fill-box，讓 rotate 一定是繞著每條線自己的中點轉。 */
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.header-menu__toggle[aria-expanded="true"] .hamburger-icon__l1 {
+  transform: translateY(5px) rotate(45deg);
+}
+.header-menu__toggle[aria-expanded="true"] .hamburger-icon__l2 {
+  opacity: 0;
+}
+.header-menu__toggle[aria-expanded="true"] .hamburger-icon__l3 {
+  transform: translateY(-5px) rotate(-45deg);
 }
