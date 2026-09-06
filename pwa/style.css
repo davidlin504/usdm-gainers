@@ -500,7 +500,13 @@ html, body {
   overflow: hidden;
 }
 
-.row__stats { text-align: right; }
+.row_actions {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0;
+}
+
+.row__stats { text-align: center; }
 
 .row__price {
   font-family: var(--mono);

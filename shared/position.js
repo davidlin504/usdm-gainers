@@ -158,6 +158,17 @@ async function fetchAccount(apiKey, apiSecret) {
   return res.json();
 }
 
+// 24 小時制，「更新於」/ 日期 / 時間固定各佔一行（用 <br> 強制換行，不靠 flex-wrap 動態判斷）。
+function setUpdatedAt(date) {
+  $updatedAt.replaceChildren(
+    "更新於",
+    document.createElement("br"),
+    date.toLocaleDateString("zh-TW"),
+    document.createElement("br"),
+    date.toLocaleTimeString("zh-TW", { hour12: false })
+  );
+}
+
 function formatUSD(n) {
   const num = Number(n);
   if (Number.isNaN(num)) return "—";
@@ -396,7 +407,7 @@ async function loadAccount() {
     hideError();
     renderSummary(account);
     renderPositions(account.positions || []);
-    $updatedAt.textContent = `更新於 ${new Date().toLocaleTimeString("zh-TW", { hour12: false })}`;
+    setUpdatedAt(new Date());
     setCredentialsCollapsed(true);
   } catch (err) {
     console.error(err);
