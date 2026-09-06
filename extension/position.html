@@ -40,7 +40,7 @@
   /* 有倉位資料時放寬寬度限制，讓桌面/寬螢幕能一次看到多欄倉位卡片；
      還在設定金鑰、沒有資料的階段維持手機版寬度即可。 */
   body.has-positions .pos-main {
-    max-width: 1100px;
+    max-width: 480px;
   }
 
   .pos-card {
@@ -281,12 +281,13 @@
 </style>
 </head>
 <body>
-  <div class="pos-header">
-    <a id="backLink" class="pos-back" href="./index.html">‹ 漲幅榜</a>
-    <h1 class="pos-title">USDⓈ-M 合約倉位</h1>
-  </div>
 
   <div class="pos-main">
+    <div class="pos-header">
+      <a id="backLink" class="pos-back" href="./index.html">‹ 漲幅榜</a>
+      <span class="brand__dot" id="liveDot"></span>
+      <h1 class="pos-title">USDⓈ-M 合約倉位</h1>
+    </div>
     <div class="pos-card">
       <div class="pos-card__head">
         <p class="pos-card__title" style="margin:0;">API 金鑰（唯讀權限即可，不要開啟提現權限）</p>
@@ -313,6 +314,7 @@
     <div id="summaryCard" class="pos-card" hidden>
       <div class="pos-card__head">
         <div id="summaryHeadLeft" class="pos-card__head-left">
+          <span class="brand__dot" id="liveDot"></span>
           <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
           <button id="visibilityToggleBtn" class="pos-card__toggle" type="button" title="隱藏帳戶資訊"></button>
         </div>

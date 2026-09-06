@@ -24,7 +24,6 @@ html, body {
   margin: 0;
   width: 100%;
   min-height: 100vh;
-  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
@@ -39,7 +38,7 @@ html, body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  max-width: 680px;
+  max-width: 480px;
   margin: 0 auto;
 }
 
@@ -122,6 +121,7 @@ html, body {
   font-family: var(--mono);
   font-size: 18px;
   color: var(--text-faint);
+  text-align: right;
 }
 
 .range-toggle {
@@ -456,6 +456,13 @@ html, body {
   color: var(--text-faint);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+}
+.row__smart-money-label svg {
+  width: 26px;
+  height: 26px;
+  display: block;
 }
 
 .row__smart-money--na {
