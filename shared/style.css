@@ -165,8 +165,8 @@ html, body {
 .row:hover { background: var(--panel-alt); }
 .row:hover .row__base { color: var(--accent); }
 
-.features-icon {
-  margin-left: 5px;
+.row__icon-btn.features-icon {
+  margin-right: 5px;
 }
 
 .row__icon-btn {
