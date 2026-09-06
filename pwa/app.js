@@ -720,11 +720,13 @@ function renderRows(items) {
       <div class="row__main">
         <div class="row__symbol">
           <span class="row__base">${base}</span>
-          ${betaHtml}
-          ${lsRatioHtml}
           <a class="row__icon-btn" href="${buildBinanceUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 合約頁">${FUTURES_ICON_SVG}</a>
           <a class="row__icon-btn" href="${buildSmartMoneyUrl(item.symbol)}" target="_blank" rel="noopener noreferrer" title="在幣安開啟 ${base}/${quote} 聰明錢訊號頁">${RADAR_ICON_SVG}</a>
           <button class="row__icon-btn row__smart-money-toggle" type="button" aria-expanded="false" title="展開聰明錢明細">${CHEVRON_ICON_SVG}</button>
+        </div>
+        <div class="row__symbol">
+          ${betaHtml}
+          ${lsRatioHtml}
         </div>
         <div class="row__bars">${barsHtml}${mcapBarHtml}</div>
         ${mcapHtml}
