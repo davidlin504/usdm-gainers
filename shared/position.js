@@ -26,6 +26,7 @@ const $retryBtn = document.getElementById("retryBtn");
 const $errorBox = document.getElementById("errorBox");
 const $errorText = document.getElementById("errorText");
 const $summaryCard = document.getElementById("summaryCard");
+const $summaryMetaCard = document.getElementById("summaryMetaCard");
 const $summaryGrid = document.getElementById("summaryGrid");
 const $summaryHeadLeft = document.getElementById("summaryHeadLeft");
 const $summaryToggleBtn = document.getElementById("summaryToggleBtn");
@@ -119,6 +120,7 @@ function clearCredentials() {
   setCredentialsCollapsed(false);
   lastAccount = null;
   $summaryCard.hidden = true;
+  $summaryMetaCard.hidden = true;
   $positionsHeader.hidden = true;
   $positionsList.className = "";
   $positionsList.innerHTML = "";
@@ -158,15 +160,11 @@ async function fetchAccount(apiKey, apiSecret) {
   return res.json();
 }
 
-// 24 小時制，「更新於」/ 日期 / 時間固定各佔一行（用 <br> 強制換行，不靠 flex-wrap 動態判斷）。
+// 24 小時制，「更新於 日期 時間」單行顯示，中間用空白隔開。
 function setUpdatedAt(date) {
-  $updatedAt.replaceChildren(
-    "更新於",
-    document.createElement("br"),
-    date.toLocaleDateString("zh-TW"),
-    document.createElement("br"),
-    date.toLocaleTimeString("zh-TW", { hour12: false })
-  );
+  const dateStr = date.toLocaleDateString("zh-TW");
+  const timeStr = date.toLocaleTimeString("zh-TW", { hour12: false });
+  $updatedAt.textContent = `更新於 ${dateStr} ${timeStr}`;
 }
 
 function formatUSD(n) {
@@ -205,6 +203,7 @@ function renderSummary(account) {
   lastAccount = account;
   updateSummaryValues();
   $summaryCard.hidden = false;
+  $summaryMetaCard.hidden = false;
 }
 
 // 跟 shared/app.js 用的是同一套連結/icon，這裡是獨立頁面所以直接複製一份，
