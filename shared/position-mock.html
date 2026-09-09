@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>USDⓈ-M 合約倉位</title>
+<title>USDⓈ-M 合約倉位（假資料預覽）</title>
 <meta name="theme-color" content="#0b0e14" />
 <link rel="icon" type="image/svg+xml" href="./logo.svg" />
 
@@ -70,19 +70,10 @@
     gap: 4px;
   }
   .pos-card__head-right {
-    float: right;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 4px;
-    margin-bottom: 10px;
-  }
-  /* .pos-card__head-right 用 float 定位後會脫離正常流，#summaryCard 的高度／border
-     不會把它算進去；帳戶總覽收合時 #summaryGrid 變成 display:none，沒有東西再撐開
-     高度，border 就會直接畫穿過浮動內容。display: flow-root 讓 #summaryCard 自己
-     形成新的 block formatting context 把浮動內容包住。這裡一定要加 :not([hidden])：
-     id 選擇器的優先權比 [hidden] 屬性選擇器高，若沒有 :not 這條規則會蓋掉瀏覽器
-     預設的 [hidden] { display: none }，導致整張卡片收合時反而不會消失。 */
-  #summaryCard:not([hidden]) {
-    display: flow-root;
   }
   .pos-card__toggle {
     background: none;
@@ -278,9 +269,22 @@
   }
 
   .error-box.pos-error { margin: 0 16px 12px; }
+
+  /* 只給這個假資料預覽頁用的提示條，跟 index.html 的 mock-banner 同一套樣式，
+     不影響 position.js/style.css 本身。 */
+  .mock-banner {
+    background: #3a2a00;
+    color: #ffcf5c;
+    font-family: monospace;
+    font-size: 18px;
+    text-align: center;
+    padding: 6px 10px;
+  }
 </style>
 </head>
 <body>
+
+  <div class="mock-banner">⚠️ 假資料模式 (MOCK DATA) — 沒有呼叫任何真正的外部 API，帳戶資料讀自 mock_fapi_account.json</div>
 
   <div class="pos-main">
     <div class="pos-header">
@@ -318,16 +322,9 @@
           <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
           <button id="visibilityToggleBtn" class="pos-card__toggle" type="button" title="隱藏帳戶資訊"></button>
         </div>
-        <button id="summaryToggleBtn" class="pos-card__toggle" type="button" title="展開/收合">▾</button>
+        <button id="summaryToggleBtn" class="pos-card__toggle" type="button" title="展開/收合">▸</button>
       </div>
-      <div class="pos-card__head-right">
-        <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
-        <div class="pos-card__refresh-row">
-          <span id="countdown" class="pos-card__countdown" hidden></span>
-          <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
-        </div>
-      </div>
-      <div id="summaryGrid" class="pos-summary">
+      <div id="summaryGrid" class="pos-summary" hidden>
         <div class="pos-summary__item">
           <span class="pos-summary__label">錢包餘額</span>
           <span id="sumWalletBalance" class="pos-summary__value">—</span>
@@ -367,6 +364,15 @@
         </select>
       </div>
     </div>
+
+    <div id="summaryMetaCard" class="pos-card pos-card__head-right" hidden>
+      <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
+      <div class="pos-card__refresh-row">
+        <span id="countdown" class="pos-card__countdown" hidden></span>
+        <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
+      </div>
+    </div>
+
     <div id="positionsList"></div>
 
     <div id="errorBox" class="error-box pos-error" hidden>
@@ -375,6 +381,40 @@
     </div>
   </div>
 
+  <script>
+    // 假資料 fetch 攔截器，一定要在 position.js 載入之前執行，才能在它第一次呼叫
+    // fetch() 之前就把 window.fetch 換掉——這樣完全不會打到真正的 Binance API，
+    // 改改 UI（例如調整倉位卡片排版）不用填真的 API 金鑰、也不用等真的 API 回應。
+    //
+    // 帳戶資料直接讀 ./mock_fapi_account.json（跟這個頁面放在同一個 shared/ 目錄），
+    // 這個讀取用的是換掉之前的原生 fetch，不算「呼叫真正的外部 API」。
+    (function () {
+      const mockDataPromise = fetch("./mock_fapi_account.json").then((r) => r.json());
+
+      // 金鑰欄位在 position.js 眼裡只是 localStorage 裡的兩個字串，預先塞假值，
+      // 這樣打開頁面就直接顯示假資料，不用手動輸入才能看到 UI。
+      if (!localStorage.getItem("usdmGainers.apiKey")) {
+        localStorage.setItem("usdmGainers.apiKey", "MOCK_API_KEY");
+      }
+      if (!localStorage.getItem("usdmGainers.apiSecret")) {
+        localStorage.setItem("usdmGainers.apiSecret", "MOCK_API_SECRET");
+      }
+
+      window.fetch = async function mockFetch(input) {
+        const url = typeof input === "string" ? input : input.url;
+
+        if (url.includes("/fapi/v3/account")) {
+          const data = await mockDataPromise;
+          return new Response(JSON.stringify(data), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        throw new Error(`position-mock.html 沒有攔截到這個網址，請補上假資料: ${url}`);
+      };
+    })();
+  </script>
   <script src="./config.js"></script>
   <script src="./position.js"></script>
 </body>
