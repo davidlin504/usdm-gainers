@@ -70,19 +70,10 @@
     gap: 4px;
   }
   .pos-card__head-right {
-    float: right;
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 4px;
-    margin-bottom: 10px;
-  }
-  /* .pos-card__head-right 用 float 定位後會脫離正常流，#summaryCard 的高度／border
-     不會把它算進去；帳戶總覽收合時 #summaryGrid 變成 display:none，沒有東西再撐開
-     高度，border 就會直接畫穿過浮動內容。display: flow-root 讓 #summaryCard 自己
-     形成新的 block formatting context 把浮動內容包住。這裡一定要加 :not([hidden])：
-     id 選擇器的優先權比 [hidden] 屬性選擇器高，若沒有 :not 這條規則會蓋掉瀏覽器
-     預設的 [hidden] { display: none }，導致整張卡片收合時反而不會消失。 */
-  #summaryCard:not([hidden]) {
-    display: flow-root;
   }
   .pos-card__toggle {
     background: none;
@@ -318,16 +309,9 @@
           <p class="pos-card__title" style="margin:0;">帳戶總覽</p>
           <button id="visibilityToggleBtn" class="pos-card__toggle" type="button" title="隱藏帳戶資訊"></button>
         </div>
-        <button id="summaryToggleBtn" class="pos-card__toggle" type="button" title="展開/收合">▾</button>
+        <button id="summaryToggleBtn" class="pos-card__toggle" type="button" title="展開/收合">▸</button>
       </div>
-      <div class="pos-card__head-right">
-        <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
-        <div class="pos-card__refresh-row">
-          <span id="countdown" class="pos-card__countdown" hidden></span>
-          <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
-        </div>
-      </div>
-      <div id="summaryGrid" class="pos-summary">
+      <div id="summaryGrid" class="pos-summary" hidden>
         <div class="pos-summary__item">
           <span class="pos-summary__label">錢包餘額</span>
           <span id="sumWalletBalance" class="pos-summary__value">—</span>
@@ -367,6 +351,15 @@
         </select>
       </div>
     </div>
+
+    <div id="summaryMetaCard" class="pos-card pos-card__head-right" hidden>
+      <span id="updatedAt" class="pos-card__updated">尚未查詢</span>
+      <div class="pos-card__refresh-row">
+        <span id="countdown" class="pos-card__countdown" hidden></span>
+        <button id="refreshBtn" class="pos-card__toggle" title="重新整理">⟲ 重新整理</button>
+      </div>
+    </div>
+
     <div id="positionsList"></div>
 
     <div id="errorBox" class="error-box pos-error" hidden>
