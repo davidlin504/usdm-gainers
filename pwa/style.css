@@ -90,13 +90,14 @@ html, body {
   border: 1px solid var(--border);
   color: var(--text-dim);
   /* width: 48px; */
-  height: 28px;
+  /* height: 28px; */
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease, transform 0.4s ease;
+  font-size: 18px;
 }
 .refresh-btn:hover { color: var(--accent); border-color: var(--accent); }
 .refresh-btn.spinning svg { animation: spin 0.7s linear; }
