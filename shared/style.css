@@ -827,3 +827,31 @@ body.is-ticker-mode.has-error .ticker {
 }
 .is-card-mode .row__change-day { font-size: 14px; }
 .is-card-mode .row__change-day-label { font-size: 12px; }
+
+/* .row__change 移到 .row__symbol（原 L/S 的位置），.row__ls-ratio 放在 .row__change-days 下方 */
+.row__symbol .row__change { margin-top: 0; }
+.row__ls { margin-top: 4px; text-align: right; }
+.is-card-mode .row__ls { order: 6; width: 100%; margin-top: 0; text-align: left; }
+
+/* 卡片檢視：.row__main / .row__stats 改用 display: contents，讓它們的子元素直接變成 .row 的 grid item，
+   這樣原本分屬兩個容器的 .row__price 跟 .row__change 才能排在同一列（price 在左、change 在右）。 */
+.is-card-mode .row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 8px;
+}
+.is-card-mode .row__main,
+.is-card-mode .row__stats { display: contents; }
+.is-card-mode .row__main > *,
+.is-card-mode .row__stats > * { grid-column: 1 / -1; }
+.is-card-mode .row__main > .row__symbol:first-child { order: 1; }
+.is-card-mode .row__price { order: 2; grid-column: 1; font-size: 16px; }
+.is-card-mode .row__main > .row__symbol:nth-child(2) { order: 3; grid-column: 2; justify-self: start; }
+.is-card-mode .row__quoteVolume { order: 4; margin-left: 0; text-align: left; }
+.is-card-mode .row__bars { order: 5; }
+.is-card-mode .row__mcap-collapse { order: 6; }
+.is-card-mode .row__smart-money-collapse { order: 7; }
+.is-card-mode .row__change-days { order: 8; padding-top: 8px; border-top: 1px solid var(--border); }
+.is-card-mode .row__ls { order: 9; }
+.is-card-mode .row_actions { order: 10; }

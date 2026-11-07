@@ -655,7 +655,7 @@ function renderRows(items) {
           <span class="row__base">${base}</span>
         </div>
         <div class="row__symbol">
-          ${lsRatioHtml}
+          <div class="row__change">+${pct.toFixed(2)}%</div>
         </div>
         <div class="row__bars">${barsHtml}${mcapBarHtml}</div>
         ${mcapHtml}
@@ -669,8 +669,8 @@ function renderRows(items) {
           <button class="row__icon-btn row__smart-money-toggle" type="button" aria-expanded="false" title="展開聰明錢明細">${CHEVRON_ICON_SVG}</button>
         </div>
         <div class="row__quoteVolume">${quoteVolumeDisplay}</div>
-        <div class="row__change">+${pct.toFixed(2)}%</div>
         <div class="row__change-days">${changeDaysHtml}</div>
+        <div class="row__ls">${lsRatioHtml}</div>
       </div>
     `;
 
