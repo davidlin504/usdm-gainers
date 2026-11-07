@@ -115,6 +115,7 @@ html, body {
   font-size: 18px;
   letter-spacing: 0.12em;
   color: var(--text-faint);
+  padding: 5px 16px 5px;
 }
 
 .subbar__updated {
