@@ -765,3 +765,64 @@ body.is-ticker-mode.has-error .ticker {
 .header-menu__toggle[aria-expanded="true"] .hamburger-icon__l3 {
   transform: translateY(-5px) rotate(-45deg);
 }
+/* ===== 卡片檢視（body.is-card-mode）：同一份 row DOM，只用 CSS 改成格狀卡片 ===== */
+.is-card-mode .content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+.is-card-mode .row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 10px;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.is-card-mode .row + .row { margin-top: 0; }
+.is-card-mode .row:hover { border-color: var(--accent); }
+.is-card-mode .row__rank {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 22px;
+}
+.is-card-mode .row__stats {
+  text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.is-card-mode .row__price { font-size: 20px; }
+.is-card-mode .row__base { font-size: 20px; }
+.is-card-mode .row__quoteVolume,
+.is-card-mode .row__change { font-size: 15px; }
+.is-card-mode .row__change { margin-top: 0; }
+.is-card-mode .row__quoteVolume { margin-left: auto; }
+.is-card-mode .row_actions {
+  order: 5;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 4px 0 0;
+}
+.is-card-mode .row__change-days {
+  order: 4;
+  width: 100%;
+}
+.is-card-mode .row__change-days {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 0;
+}
+.is-card-mode .row__change-day { font-size: 14px; }
+.is-card-mode .row__change-day-label { font-size: 12px; }

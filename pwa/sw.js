@@ -1,4 +1,4 @@
-const CACHE_NAME = "gainers-shell-v2";
+const CACHE_NAME = "gainers-shell-v3";
 const SHELL_FILES = [
   "./index.html",
   "./style.css",

@@ -742,6 +742,29 @@ function initMcapToggle() {
   });
 }
 
+// 卡片／列表檢視：純 CSS 切換（body.is-card-mode），不用重新 renderRows()。
+// 選擇會記在 localStorage，下次開啟沿用；localStorage 不可用時退回預設的列表檢視。
+function setCardMode(enabled) {
+  document.body.classList.toggle("is-card-mode", enabled);
+  try {
+    localStorage.setItem("cardMode", enabled ? "1" : "0");
+  } catch (_) {}
+}
+
+function initCardToggle() {
+  const $cardToggle = document.getElementById("cardToggle");
+  if (!$cardToggle) return;
+  let saved = false;
+  try {
+    saved = localStorage.getItem("cardMode") === "1";
+  } catch (_) {}
+  $cardToggle.checked = saved;
+  setCardMode(saved);
+  $cardToggle.addEventListener("change", (e) => {
+    setCardMode(e.target.checked);
+  });
+}
+
 function showError(message) {
   $content.hidden = true;
   $errorBox.hidden = false;
@@ -853,6 +876,7 @@ window.addEventListener("online", () => {
 initTicker();
 initTickerToggle();
 initMcapToggle();
+initCardToggle();
 initSmartMoneyRangeToggle();
 initHeaderMenu();
 

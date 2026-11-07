@@ -389,7 +389,22 @@
     // 帳戶資料直接讀 ./mock_fapi_account.json（跟這個頁面放在同一個 shared/ 目錄），
     // 這個讀取用的是換掉之前的原生 fetch，不算「呼叫真正的外部 API」。
     (function () {
-      const mockDataPromise = fetch("./mock_fapi_account.json").then((r) => r.json());
+      // 用 file:// 直接雙擊開啟時，瀏覽器（Chrome/Safari）會擋掉對本機 json 的 fetch，
+      // 所以失敗時把原因講清楚，而不是只丟一句 "Failed to fetch"。
+      const mockDataPromise = fetch("./mock_fapi_account.json")
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        })
+        .catch((err) => {
+          throw new Error(
+            `讀不到 mock_fapi_account.json（${err.message}）。` +
+              (location.protocol === "file:"
+                ? "目前是用 file:// 開啟，瀏覽器不允許讀本機檔案；請在 shared/ 目錄執行 `python3 -m http.server 8000`，再開 http://localhost:8000/position-mock.html"
+                : "請確認 mock_fapi_account.json 跟本頁放在同一個目錄")
+          );
+        });
+      mockDataPromise.catch(() => {}); // 避免在 position.js 呼叫之前就觸發 unhandled rejection 警告
 
       // 金鑰欄位在 position.js 眼裡只是 localStorage 裡的兩個字串，預先塞假值，
       // 這樣打開頁面就直接顯示假資料，不用手動輸入才能看到 UI。
