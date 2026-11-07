@@ -262,20 +262,6 @@ html, body {
   color: var(--text-faint);
 }
 
-.row__beta {
-  font-family: var(--mono);
-  font-size: 18px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  color: var(--text-dim);
-  background: var(--panel-alt);
-  border: 1px solid var(--border);
-}
-
-.row__beta.is-hi { color: var(--down); border-color: rgba(255, 84, 112, 0.35); }
-.row__beta.is-lo { color: var(--up); border-color: rgba(23, 230, 161, 0.35); }
-.row__beta.is-na { color: var(--text-faint); }
-
 .row__ls-ratio {
   font-family: var(--mono);
   font-size: 18px;

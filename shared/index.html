@@ -109,7 +109,7 @@
       // TOP 5（依 priceChangePercent 排序後會落在前 5 名，用來驗證正常渲染）：
       //   龙虾USDT   - 非英文字母的 base，驗證中文幣種名稱顯示
       //   MAGMAUSDT  - 一般情況
-      //   NEWLISTUSDT- K 線資料不足（模擬新上市），驗證天數漲跌/beta 顯示「—」
+      //   NEWLISTUSDT- K 線資料不足（模擬新上市），驗證天數漲跌顯示「—」
       //   NOCAPUSDC  - USDC 報價 + CoinGecko 查無市值，驗證「市值資料暫無」
       //   BEATUSDT   - 一般情況
       // 後面兩個 DUMMY 是低漲幅的干擾資料，用來驗證排序/取前 5 名的邏輯正確。
@@ -123,9 +123,6 @@
         { symbol: "DUMMYBUSDT", lastPrice: "10.00000", priceChangePercent: "2.00", quoteVolume: "500000" },
       ];
 
-      // beta 計算用的基準（BTCUSDT）不需要出現在 24hr 榜單裡，只需要能查到 klines。
-      const BENCHMARK_PRICE = { BTCUSDT: 68000 };
-
       // CoinGecko 市值資料，key 是 base（不含 USDT/USDC）。刻意不給 NOCAP，
       // 用來測試「市值資料暫無」那條路徑。
       const MOCK_MARKET_CAPS = {
@@ -138,7 +135,6 @@
       function priceOf(symbol) {
         const t = MOCK_TICKERS.find((x) => x.symbol === symbol);
         if (t) return Number(t.lastPrice);
-        if (symbol in BENCHMARK_PRICE) return BENCHMARK_PRICE[symbol];
         return 1;
       }
 
