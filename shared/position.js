@@ -42,7 +42,7 @@ const $updatedAt = document.getElementById("updatedAt");
 // 記住最近一次成功查詢到的持倉，切換排序/篩選/顯示方式時直接重新處理/渲染，不用重打 API。
 let lastPositions = [];
 let lastAccount = null;
-let sortMode = "roi-desc";
+let sortMode = "roi-asc";
 let sideFilter = "all";
 let viewMode = "list"; // "card" | "list"
 let accountHidden = false;
